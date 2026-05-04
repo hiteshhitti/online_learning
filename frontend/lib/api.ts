@@ -1,11 +1,14 @@
 // Central API client — all fetch calls go through here
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+const BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   // Session-only token (cleared on browser close)
   const token = typeof window !== 'undefined' ? sessionStorage.getItem('token') : null
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+
+  const cleanPath = path.replace(/^\/+/, '')   // leading slash hata
+  const url = `${BASE_URL}/${cleanPath}`   
+  const res = await fetch(url, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -109,7 +112,9 @@ export const accountApi = {
 
 function adminRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== 'undefined' ? sessionStorage.getItem('adminToken') : null
-  return fetch(`${BASE_URL}${path}`, {
+  const cleanPath = path.replace(/^\/+/, '')
+  const url = `${BASE_URL}/${cleanPath}`
+  return fetch(url, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { 'X-Admin-Token': token } : {}),
@@ -224,7 +229,11 @@ export interface MemberReferral {
 
 function memberRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = typeof window !== 'undefined' ? sessionStorage.getItem('memberToken') : null
-  return fetch(`${BASE_URL}${path}`, {
+
+  const cleanPath = path.replace(/^\/+/, '')
+  const url = `${BASE_URL}/${cleanPath}`
+
+  return fetch(url, {
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),

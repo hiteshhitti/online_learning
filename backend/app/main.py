@@ -3,6 +3,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from app.routes import users, courses, orders, dashboard, enquiry, admin, members, batches
 import os, shutil, uuid
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="LearnHub API", version="1.0.0")
 
@@ -10,28 +11,44 @@ app = FastAPI(title="LearnHub API", version="1.0.0")
 UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
-ALLOWED_ORIGIN = "http://localhost:3000"
+# ALLOWED_ORIGIN = "http://localhost:3000"
 
-@app.middleware("http")
-async def cors_middleware(request: Request, call_next):
-    if request.method == "OPTIONS":
-        return JSONResponse(
-            content={},
-            headers={
-                "Access-Control-Allow-Origin":      ALLOWED_ORIGIN,
-                "Access-Control-Allow-Credentials": "true",
-                "Access-Control-Allow-Methods":     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-                "Access-Control-Allow-Headers":     "Content-Type, Authorization, X-Admin-Token",
-                "Access-Control-Max-Age":           "600",
-            },
-        )
+# @app.middleware("http")
+# async def cors_middleware(request: Request, call_next):
+#     if request.method == "OPTIONS":
+#         return JSONResponse(
+#             content={},
+#             headers={
+#                 "Access-Control-Allow-Origin":      ALLOWED_ORIGIN,
+#                 "Access-Control-Allow-Credentials": "true",
+#                 "Access-Control-Allow-Methods":     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+#                 "Access-Control-Allow-Headers":     "Content-Type, Authorization, X-Admin-Token",
+#                 "Access-Control-Max-Age":           "600",
+#             },
+#         )
 
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"]      = ALLOWED_ORIGIN
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization, X-Admin-Token"
-    return response
+#     response = await call_next(request)
+#     response.headers["Access-Control-Allow-Origin"]      = ALLOWED_ORIGIN
+#     response.headers["Access-Control-Allow-Credentials"] = "true"
+#     response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+#     response.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization, X-Admin-Token"
+#     return response
+
+
+
+
+origins = [
+    "http://localhost:3000",
+    "https://online-learning-tau.vercel.app"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ── Image upload endpoint ─────────────────────────────────────────────────────

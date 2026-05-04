@@ -36,7 +36,7 @@ const FEATURES = [
   { icon: Award, title: 'Expert Instructors', desc: 'Learn from industry professionals with years of real-world experience.' },
   { icon: Zap, title: 'Live + Recorded', desc: 'Attend live sessions or watch recordings at your own pace, anytime.' },
   { icon: CheckCircle, title: 'Industry Certificates', desc: 'Earn recognised certificates that boost your career and credibility.' },
-  { icon: Users, title: '1:1 Mentorship', desc: 'Get personalised guidance from mentors who've been in your shoes.' },
+  { icon: Users, title: '1:1 Mentorship', desc: "Get personalised guidance from mentors who've been in your shoes." },
 ]
 
 export default function Home() {

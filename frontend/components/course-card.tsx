@@ -8,6 +8,16 @@ interface CourseCardProps {
   showActions?: boolean;
 }
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/+$/, '')
+
+function resolveImage(image?: string): string | null {
+  if (!image) return null
+  if (image.startsWith('http://') || image.startsWith('https://')) return image
+  // bare filename or /uploads/filename — point to Render backend
+  const filename = image.replace(/^\/uploads\//, '')
+  return `${API_BASE}/uploads/${filename}`
+}
+
 const LEVEL_COLORS: Record<string, string> = {
   Beginner: 'bg-emerald-500',
   Intermediate: 'bg-amber-500',
@@ -22,9 +32,9 @@ export function CourseCard({ course }: CourseCardProps) {
 
       {/* Thumbnail — compact 130px */}
       <div className="relative w-full overflow-hidden bg-gradient-to-br from-primary/10 to-secondary/10 flex-shrink-0" style={{ height: '130px' }}>
-        {course.image ? (
+        {resolveImage(course.image) ? (
           <img
-            src={course.image}
+            src={resolveImage(course.image)!}
             alt={course.title}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
           />

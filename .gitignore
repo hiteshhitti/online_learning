@@ -1,0 +1,80 @@
+# =========================
+# 🔐 ENV & SECRETS
+# =========================
+.env
+.env.*
+*.env
+
+# Google creds / secrets
+creds.json
+*.key
+*.pem
+
+# =========================
+# 🐍 PYTHON (Backend)
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python build files
+build/
+dist/
+*.egg-info/
+
+# =========================
+# ⚛️ NODE / NEXT.JS (Frontend)
+# =========================
+node_modules/
+.next/
+out/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# 💻 OS FILES
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# 🧪 TEST / COVERAGE
+# =========================
+.coverage
+htmlcov/
+.pytest_cache/
+
+# =========================
+# 🗄️ DATABASE (LOCAL ONLY)
+# =========================
+*.sqlite3
+*.db
+
+# =========================
+# 🧠 IDE / EDITOR
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# 🚀 DEPLOYMENT / CACHE
+# =========================
+.cache/
+.vercel/
+
+# =========================
+# 📦 MISC
+# =========================
+*.log
+*.tmp

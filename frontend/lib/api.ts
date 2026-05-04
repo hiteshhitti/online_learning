@@ -136,6 +136,7 @@ export interface AdminStats {
 export interface AdminCourse {
   id: string; title: string; description: string; price: number
   category?: string; level?: string; instructor?: string; duration?: string; image?: string
+  learn_points?: string; career_roles?: string
 }
 
 export interface AdminEnrollment {

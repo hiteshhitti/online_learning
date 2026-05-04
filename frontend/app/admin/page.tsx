@@ -22,6 +22,7 @@ type Tab = 'overview' | 'courses' | 'enrollments' | 'enquiries' | 'discounts' | 
 const BLANK_COURSE: Omit<AdminCourse, 'id'> = {
   title: '', description: '', price: 0, category: '',
   level: 'Beginner', instructor: '', duration: '', image: '',
+  learn_points: '', career_roles: '',
 }
 
 const BLANK_BATCH = {
@@ -120,7 +121,8 @@ function CourseModal({ course, onClose, onSaved }: {
   const [form, setForm] = useState<Omit<AdminCourse, 'id'>>(
     course ? { title: course.title, description: course.description, price: course.price,
                category: course.category || '', level: course.level || 'Beginner',
-               instructor: course.instructor || '', duration: course.duration || '', image: course.image || '' }
+               instructor: course.instructor || '', duration: course.duration || '', image: course.image || '',
+               learn_points: course.learn_points || '', career_roles: course.career_roles || '' }
            : { ...BLANK_COURSE }
   )
   const [loading, setLoading] = useState(false)
@@ -208,6 +210,20 @@ function CourseModal({ course, onClose, onSaved }: {
             <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={4}
               className="w-full mt-2 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="What students will learn..." />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-sm font-medium">What You'll Learn</label>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Enter each point separated by a comma</p>
+            <textarea value={form.learn_points} onChange={e => set('learn_points', e.target.value)} rows={3}
+              className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Build REST APIs, Work with databases, Deploy to cloud, Write clean code" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-sm font-medium">Career Roles After This Course</label>
+            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Enter each role separated by a comma</p>
+            <textarea value={form.career_roles} onChange={e => set('career_roles', e.target.value)} rows={2}
+              className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Backend Developer, API Engineer, DevOps Engineer, Freelancer" />
           </div>
         </div>
 

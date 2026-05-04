@@ -460,3 +460,34 @@ def reject_order(order_id: str):
             return {"msg": "Order rejected", "order_id": order_id}
 
     raise HTTPException(status_code=404, detail="Order not found")
+
+
+@router.get("/orders", dependencies=[Depends(require_admin)])
+def list_all_orders():
+    """List all orders with student and course details for instalment management."""
+    orders      = get_sheet("orders").get_all_records()
+    users       = get_sheet("users").get_all_records()
+    courses     = get_sheet("courses").get_all_records()
+
+    user_map   = {str(u.get("id")): u for u in users}
+    course_map = {str(c.get("id")): c for c in courses}
+
+    result = []
+    for o in orders:
+        user   = user_map.get(str(o.get("user_id")), {})
+        course = course_map.get(str(o.get("course_id")), {})
+        result.append({
+            "order_id":      o.get("order_id") or o.get("id", ""),
+            "user_id":       o.get("user_id", ""),
+            "course_id":     o.get("course_id", ""),
+            "student_name":  user.get("name", ""),
+            "student_email": user.get("email", ""),
+            "course_title":  course.get("title", ""),
+            "course_price":  course.get("price", 0),
+            "amount":        o.get("amount", 0),
+            "amount_paid":   o.get("amount", 0),
+            "status":        o.get("status", "pending"),
+            "reference":     o.get("reference", ""),
+            "created_at":    o.get("created_at", ""),
+        })
+    return result

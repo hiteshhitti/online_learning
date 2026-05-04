@@ -162,3 +162,84 @@ def get_user_orders(user_id: str):
     sheet = get_sheet("orders")
     all_orders = sheet.get_all_records()
     return [o for o in all_orders if str(o.get("user_id")) == str(user_id)]
+
+
+@router.post("/{order_id}/instalments")
+def add_instalment(order_id: str, payload: dict):
+    """
+    Record a part payment against an existing order.
+    Automatically enrolls the student if total paid >= course price.
+    Body: { user_id, course_id, amount, reference, note }
+    """
+    instalment_sheet = get_sheet("instalments")
+    orders_sheet     = get_sheet("orders")
+    courses_sheet    = get_sheet("courses")
+
+    # Get all instalments for this order
+    all_instalments = instalment_sheet.get_all_records()
+    previous_paid   = sum(
+        float(i.get("amount", 0) or 0)
+        for i in all_instalments
+        if str(i.get("order_id")) == str(order_id)
+    )
+
+    new_amount  = float(payload.get("amount", 0))
+    total_paid  = previous_paid + new_amount
+
+    # Record the instalment
+    instalment_sheet.append_row([
+        str(uuid.uuid4()),
+        order_id,
+        payload.get("user_id", ""),
+        payload.get("course_id", ""),
+        new_amount,
+        payload.get("reference", ""),
+        payload.get("note", ""),
+        str(datetime.now()),
+    ])
+
+    # Check course price to decide if fully paid
+    all_courses = courses_sheet.get_all_records()
+    course      = next(
+        (c for c in all_courses if str(c.get("id")) == str(payload.get("course_id"))), None
+    )
+    course_price = float(course.get("price", 0)) if course else 0
+
+    fully_paid = total_paid >= course_price
+
+    # If fully paid → activate the order and enroll
+    if fully_paid:
+        all_orders = orders_sheet.get_all_records()
+        for i, o in enumerate(all_orders, start=2):
+            if str(o.get("order_id")) == str(order_id):
+                # Update status to active
+                headers = orders_sheet.row_values(1)
+                if "status" in headers:
+                    col = headers.index("status") + 1
+                    orders_sheet.update_cell(i, col, "active")
+                # Enroll user
+                try:
+                    enroll_user(payload.get("user_id"), payload.get("course_id"))
+                except Exception as e:
+                    print(f"Enroll error: {e}")
+                break
+
+    return {
+        "msg": "Instalment recorded",
+        "previous_paid": previous_paid,
+        "this_payment": new_amount,
+        "total_paid": total_paid,
+        "course_price": course_price,
+        "fully_paid": fully_paid,
+        "enrolled": fully_paid,
+    }
+
+
+@router.get("/{order_id}/instalments")
+def get_instalments(order_id: str):
+    """Get all instalments for a specific order."""
+    sheet = get_sheet("instalments")
+    all_instalments = sheet.get_all_records()
+    instalments = [i for i in all_instalments if str(i.get("order_id")) == str(order_id)]
+    total_paid  = sum(float(i.get("amount", 0) or 0) for i in instalments)
+    return {"order_id": order_id, "instalments": instalments, "total_paid": total_paid}

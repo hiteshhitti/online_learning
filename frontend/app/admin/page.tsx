@@ -17,12 +17,11 @@ import {
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'courses' | 'enrollments' | 'enquiries' | 'discounts' | 'batches'
+type Tab = 'overview' | 'courses' | 'enrollments' | 'enquiries' | 'discounts' | 'batches' | 'instalments'
 
 const BLANK_COURSE: Omit<AdminCourse, 'id'> = {
   title: '', description: '', price: 0, category: '',
   level: 'Beginner', instructor: '', duration: '', image: '',
-  learn_points: '', career_roles: '',
 }
 
 const BLANK_BATCH = {
@@ -121,8 +120,7 @@ function CourseModal({ course, onClose, onSaved }: {
   const [form, setForm] = useState<Omit<AdminCourse, 'id'>>(
     course ? { title: course.title, description: course.description, price: course.price,
                category: course.category || '', level: course.level || 'Beginner',
-               instructor: course.instructor || '', duration: course.duration || '', image: course.image || '',
-               learn_points: course.learn_points || '', career_roles: course.career_roles || '' }
+               instructor: course.instructor || '', duration: course.duration || '', image: course.image || '' }
            : { ...BLANK_COURSE }
   )
   const [loading, setLoading] = useState(false)
@@ -211,26 +209,201 @@ function CourseModal({ course, onClose, onSaved }: {
               className="w-full mt-2 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
               placeholder="What students will learn..." />
           </div>
-          <div className="sm:col-span-2">
-            <label className="text-sm font-medium">What You'll Learn</label>
-            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Enter each point separated by a comma</p>
-            <textarea value={form.learn_points} onChange={e => set('learn_points', e.target.value)} rows={3}
-              className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Build REST APIs, Work with databases, Deploy to cloud, Write clean code" />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="text-sm font-medium">Career Roles After This Course</label>
-            <p className="text-xs text-muted-foreground mt-0.5 mb-1">Enter each role separated by a comma</p>
-            <textarea value={form.career_roles} onChange={e => set('career_roles', e.target.value)} rows={2}
-              className="w-full mt-1 px-3 py-2 border border-border rounded-lg bg-background text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30"
-              placeholder="Backend Developer, API Engineer, DevOps Engineer, Freelancer" />
-          </div>
         </div>
 
         <div className="flex gap-3 pt-2">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button className="flex-1" onClick={handleSave} disabled={loading}>
             {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Check className="w-4 h-4 mr-2" />{course ? 'Update' : 'Create'} Course</>}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+
+// ─── Enrolments For Instalments ──────────────────────────────────────────────
+function EnrolmentsForInstalments({
+  onAddPayment
+}: {
+  onAddPayment: (order: { order_id: string; user_id: string; course_id: string; course_title: string; amount_paid: number }) => void
+}) {
+  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const [orders, setOrders] = useState<any[]>([])
+  const [search, setSearch] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch(`${API}/admin/orders`, { headers: { 'x-admin-key': 'admin' } })
+      .then(r => r.json())
+      .then(d => setOrders(Array.isArray(d) ? d : []))
+      .catch(() => setOrders([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const filtered = orders.filter(o =>
+    !search ||
+    String(o.student_name || '').toLowerCase().includes(search.toLowerCase()) ||
+    String(o.student_email || '').toLowerCase().includes(search.toLowerCase()) ||
+    String(o.course_title || '').toLowerCase().includes(search.toLowerCase())
+  )
+
+  if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} className="pl-9" placeholder="Search by student name, email or course..." />
+      </div>
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center">
+          <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+          <p className="text-muted-foreground text-sm">No orders found</p>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                {['Student', 'Email', 'Course', 'Total Price', 'Paid', 'Status', ''].map(h => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map((o, i) => (
+                <tr key={i} className="hover:bg-muted/40">
+                  <td className="px-4 py-3 font-medium whitespace-nowrap">{o.student_name || o.user_id}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{o.student_email || '—'}</td>
+                  <td className="px-4 py-3 max-w-[160px] truncate" title={o.course_title}>{o.course_title || o.course_id}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">₹{o.course_price || o.amount}</td>
+                  <td className="px-4 py-3 whitespace-nowrap">₹{o.amount_paid ?? o.amount}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      o.status === 'active' ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                    }`}>{o.status || 'pending'}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Button size="sm" variant="outline" onClick={() => onAddPayment({
+                      order_id: o.order_id,
+                      user_id: o.user_id,
+                      course_id: o.course_id,
+                      course_title: o.course_title || o.course_id,
+                      amount_paid: o.amount_paid ?? o.amount,
+                    })}>
+                      + Add Payment
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── Instalment Modal ─────────────────────────────────────────────────────────
+function InstalmentModal({
+  order, onClose, onSaved
+}: {
+  order: { order_id: string; user_id: string; course_id: string; course_title: string; amount_paid: number }
+  onClose: () => void
+  onSaved: (result: { total_paid: number; fully_paid: boolean }) => void
+}) {
+  const [form, setForm] = useState({ amount: '', reference: '', note: '' })
+  const [history, setHistory] = useState<{ amount: number; reference: string; note: string; created_at: string }[]>([])
+  const [totalPaid, setTotalPaid] = useState(order.amount_paid)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/orders/${order.order_id}/instalments`)
+      .then(r => r.json())
+      .then(d => { setHistory(d.instalments || []); setTotalPaid(d.total_paid || 0) })
+      .catch(() => {})
+  }, [order.order_id])
+
+  const handleAdd = async () => {
+    if (!form.amount || isNaN(+form.amount) || +form.amount <= 0) {
+      toast.error('Enter a valid amount'); return
+    }
+    setLoading(true)
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/orders/${order.order_id}/instalments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: order.user_id, course_id: order.course_id, amount: +form.amount, reference: form.reference, note: form.note })
+      })
+      const data = await res.json()
+      toast.success(data.fully_paid ? '✅ Fully paid — student enrolled!' : `Instalment recorded. Total paid: ₹${data.total_paid}`)
+      setTotalPaid(data.total_paid)
+      setHistory(h => [...h, { amount: +form.amount, reference: form.reference, note: form.note, created_at: new Date().toISOString() }])
+      setForm({ amount: '', reference: '', note: '' })
+      onSaved({ total_paid: data.total_paid, fully_paid: data.fully_paid })
+    } catch {
+      toast.error('Failed to record instalment')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 overflow-y-auto py-8">
+      <Card className="w-full max-w-lg p-6 space-y-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Part Payment</h2>
+            <p className="text-sm text-muted-foreground truncate max-w-xs">{order.course_title}</p>
+          </div>
+          <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
+        </div>
+
+        {/* Payment history */}
+        {history.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Payment History</p>
+            <div className="rounded-lg border border-border overflow-hidden">
+              {history.map((h, i) => (
+                <div key={i} className="flex items-center justify-between px-3 py-2 text-sm border-b last:border-0 border-border">
+                  <div>
+                    <span className="font-medium">₹{h.amount}</span>
+                    {h.reference && <span className="text-muted-foreground ml-2 text-xs">Ref: {h.reference}</span>}
+                    {h.note && <span className="text-muted-foreground ml-2 text-xs">— {h.note}</span>}
+                  </div>
+                  <span className="text-xs text-muted-foreground">{new Date(h.created_at).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+            <div className="flex justify-between text-sm font-semibold px-1">
+              <span>Total Paid</span>
+              <span className="text-primary">₹{totalPaid}</span>
+            </div>
+          </div>
+        )}
+
+        {/* New instalment form */}
+        <div className="space-y-3 pt-2 border-t border-border">
+          <p className="text-sm font-medium">Record New Payment</p>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Amount (₹) *</label>
+            <Input type="number" value={form.amount} onChange={e => setForm(f => ({...f, amount: e.target.value}))} className="mt-1" placeholder="e.g. 5000" min={1} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">UPI / Transaction Reference</label>
+            <Input value={form.reference} onChange={e => setForm(f => ({...f, reference: e.target.value}))} className="mt-1" placeholder="e.g. UPI123456789" />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Note (optional)</label>
+            <Input value={form.note} onChange={e => setForm(f => ({...f, note: e.target.value}))} className="mt-1" placeholder="e.g. 2nd instalment" />
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-1">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button className="flex-1" onClick={handleAdd} disabled={loading}>
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Saving...</> : <><Check className="w-4 h-4 mr-2" />Record Payment</>}
           </Button>
         </div>
       </Card>
@@ -482,6 +655,10 @@ export default function AdminDashboard() {
   const [batches, setBatches]             = useState<ApiBatch[]>([])
   const [loading, setLoading]             = useState(false)
   const [editCourse, setEditCourse]       = useState<AdminCourse | null | undefined>(undefined)
+  const [instalments, setInstalments]     = useState<Record<string, {amount: number; reference: string; note: string; created_at: string}[]>>({})
+  const [instalmentOrder, setInstalmentOrder] = useState<{order_id: string; user_id: string; course_id: string; course_title: string; amount_paid: number} | null>(null)
+  const [instalmentForm, setInstalmentForm]   = useState({ amount: '', reference: '', note: '' })
+  const [instalmentLoading, setInstalmentLoading] = useState(false)
   const [editBatch, setEditBatch]         = useState<ApiBatch | null | undefined>(undefined)
   const [showDiscModal, setShowDiscModal] = useState(false)
   const [searchEnroll, setSearchEnroll]   = useState('')
@@ -502,6 +679,15 @@ export default function AdminDashboard() {
         setStats(await adminApi.stats())
       } else if (tab === 'courses') {
         setCourses(await adminApi.getCourses())
+      } else if (tab === 'instalments') {
+        // fetch all orders with pending/part-paid status
+        try {
+          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/orders/`)
+          if (res.ok) {
+            const data = await res.json()
+            setInstalments(data)
+          }
+        } catch {}
       } else if (tab === 'enrollments') {
         setEnrollments(await adminApi.getEnrollments(filterDiscount || undefined))
       } else if (tab === 'enquiries') {
@@ -595,6 +781,7 @@ export default function AdminDashboard() {
     { id: 'courses'      as Tab, label: 'Courses',      icon: BookOpen },
     { id: 'batches'      as Tab, label: 'Batches',      icon: CalendarDays },
     { id: 'enrollments'  as Tab, label: 'Enrollments',  icon: Users },
+    { id: 'instalments'  as Tab, label: 'Instalments',  icon: Tag },
     { id: 'enquiries'    as Tab, label: 'Enquiries',    icon: MessageSquare },
     { id: 'discounts'    as Tab, label: 'Discounts',    icon: Tag },
   ]
@@ -898,6 +1085,23 @@ export default function AdminDashboard() {
                 </div>
               )}
             </div>
+          )}
+
+          {/* ── Instalments ── */}
+          {!loading && activeTab === 'instalments' && (
+            <div className="space-y-4">
+              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-200">
+                <strong>Part Payments:</strong> Find a student's order below and click <em>Add Payment</em> to record each instalment. The student is automatically enrolled once total paid ≥ course price.
+              </div>
+              <EnrolmentsForInstalments onAddPayment={setInstalmentOrder} />
+            </div>
+          )}
+          {instalmentOrder && (
+            <InstalmentModal
+              order={instalmentOrder}
+              onClose={() => setInstalmentOrder(null)}
+              onSaved={() => setInstalmentOrder(null)}
+            />
           )}
 
           {/* ── Enquiries ── */}

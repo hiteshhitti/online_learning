@@ -1,9 +1,7 @@
 import os
+import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-
-BASE_DIR  = os.path.dirname(__file__)
-CREDS_PATH = os.path.join(BASE_DIR, "creds.json")
 
 scope = [
     "https://spreadsheets.google.com/feeds",
@@ -12,13 +10,17 @@ scope = [
 
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1U68FI265VjfGbQa3UhODCZdlbrd2GI83acK3vMd7lmc/edit#gid=0"
 
-# ── Lazy connection — only opened on first request, not at import time ────────
 _spreadsheet = None
 
 def _get_spreadsheet():
     global _spreadsheet
     if _spreadsheet is None:
-        creds  = ServiceAccountCredentials.from_json_keyfile_name(CREDS_PATH, scope)
+        creds_json = os.environ.get("GOOGLE_CREDS_JSON")
+        if not creds_json:
+            raise Exception("GOOGLE_CREDS_JSON environment variable not set")
+        
+        creds_dict = json.loads(creds_json)
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         _spreadsheet = client.open_by_url(SPREADSHEET_URL)
     return _spreadsheet

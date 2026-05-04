@@ -7,26 +7,26 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="LearnHub API", version="1.0.0")
 
-# ── Uploads folder ────────────────────────────────────────────────────────────
-UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
-app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
 
-
-
-origins = [
-    "http://localhost:3000",
-    "https://online-learning-tau.vercel.app"
-]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_origins=[
+        "http://localhost:3000",
+        "https://online-learning-tau.vercel.app",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",  # covers preview deployments
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Uploads folder ────────────────────────────────────────────────────────────
+UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
+app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
 
 # ── Image upload endpoint ─────────────────────────────────────────────────────

@@ -9,6 +9,7 @@ import { CourseCard } from '@/components/course-card'
 import { coursesApi, ApiCourse } from '@/lib/api'
 
 const CATEGORIES = [
+  'All',
   'AI & Machine Learning',
   'Web Development',
   'Data Science',
@@ -40,16 +41,20 @@ const FEATURES = [
 ]
 
 export default function Home() {
-  const [featuredCourses, setFeaturedCourses] = useState<ApiCourse[]>([])
+  const [allCourses, setAllCourses] = useState<ApiCourse[]>([])
   const [loadingCourses, setLoadingCourses] = useState(true)
-  const [activeCategory, setActiveCategory] = useState('AI & Machine Learning')
+  const [activeCategory, setActiveCategory] = useState('All')
 
   useEffect(() => {
     coursesApi.list()
-      .then(data => setFeaturedCourses(data.slice(0, 3)))
-      .catch(() => setFeaturedCourses([]))
+      .then(data => setAllCourses(data))
+      .catch(() => setAllCourses([]))
       .finally(() => setLoadingCourses(false))
   }, [])
+
+  const filteredCourses = activeCategory === 'All'
+    ? allCourses.slice(0, 6)
+    : allCourses.filter(c => c.category?.toLowerCase() === activeCategory.toLowerCase()).slice(0, 6)
 
   return (
     <main className="min-h-screen bg-background font-sans">
@@ -205,9 +210,9 @@ export default function Home() {
                 <div className="flex justify-center py-20">
                   <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
                 </div>
-              ) : featuredCourses.length > 0 ? (
+              ) : filteredCourses.length > 0 ? (
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                  {featuredCourses.map(course => (
+                  {filteredCourses.map(course => (
                     <Link key={course.id} href={`/courses/${course.id}`}>
                       <CourseCard course={{
                         ...course,

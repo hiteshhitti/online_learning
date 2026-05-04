@@ -11,28 +11,6 @@ app = FastAPI(title="LearnHub API", version="1.0.0")
 UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 
-# ALLOWED_ORIGIN = "http://localhost:3000"
-
-# @app.middleware("http")
-# async def cors_middleware(request: Request, call_next):
-#     if request.method == "OPTIONS":
-#         return JSONResponse(
-#             content={},
-#             headers={
-#                 "Access-Control-Allow-Origin":      ALLOWED_ORIGIN,
-#                 "Access-Control-Allow-Credentials": "true",
-#                 "Access-Control-Allow-Methods":     "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-#                 "Access-Control-Allow-Headers":     "Content-Type, Authorization, X-Admin-Token",
-#                 "Access-Control-Max-Age":           "600",
-#             },
-#         )
-
-#     response = await call_next(request)
-#     response.headers["Access-Control-Allow-Origin"]      = ALLOWED_ORIGIN
-#     response.headers["Access-Control-Allow-Credentials"] = "true"
-#     response.headers["Access-Control-Allow-Methods"]     = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-#     response.headers["Access-Control-Allow-Headers"]     = "Content-Type, Authorization, X-Admin-Token"
-#     return response
 
 
 
@@ -85,8 +63,8 @@ async def upload_image(
     with open(filepath, "wb") as f:
         f.write(contents)
 
-    return {"url": f"http://localhost:8000/uploads/{filename}"}
-
+    BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
+    return {"url": f"{BASE_URL}/uploads/{filename}"}  # ✅
 
 app.include_router(users.router,     prefix="/users",     tags=["Users"])
 app.include_router(courses.router,   prefix="/courses",   tags=["Courses"])

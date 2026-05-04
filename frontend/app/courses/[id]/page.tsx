@@ -14,20 +14,6 @@ import { coursesApi, ApiCourse, batchesApi, ApiBatch } from '@/lib/api'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 
-const LEARN_BULLETS = [
-  'Master core concepts with structured, hands-on curriculum',
-  'Apply industry best practices through real-world projects',
-  'Get job-ready with professional tools and workflows',
-  'Build a portfolio that stands out to employers',
-]
-
-const ROLE_BULLETS = [
-  'Junior / Mid-level Developer or Analyst',
-  'Freelancer & Independent Consultant',
-  'Project Lead / Team Coordinator',
-  'Startup Founder with technical knowledge',
-]
-
 function BatchCard({
   batch,
   selected,
@@ -103,6 +89,14 @@ export default function CourseDetailPage() {
   const [error, setError] = useState('')
   const [isFavorited, setIsFavorited] = useState(false)
   const [batchError, setBatchError] = useState(false)
+
+  // Derived from Google Sheet columns: learn_points and career_roles (comma-separated)
+  const learnBullets: string[] = course
+    ? String(course.learn_points ?? '').split(',').map(s => s.trim()).filter(Boolean)
+    : []
+  const roleBullets: string[] = course
+    ? String(course.career_roles ?? '').split(',').map(s => s.trim()).filter(Boolean)
+    : []
 
   useEffect(() => {
     coursesApi.get(courseId)
@@ -233,13 +227,14 @@ export default function CourseDetailPage() {
           <div className="lg:col-span-2 space-y-8">
 
             {/* What you'll learn */}
+            {learnBullets.length > 0 && (
             <section>
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-primary" />
                 What You&apos;ll Learn
               </h2>
               <div className="grid sm:grid-cols-2 gap-2.5">
-                {LEARN_BULLETS.map((item, i) => (
+                {learnBullets.map((item, i) => (
                   <div key={i} className="flex items-start gap-2.5 p-3 rounded-lg bg-primary/5 border border-primary/10">
                     <span className="w-4 h-4 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-[9px] font-bold flex-shrink-0 mt-0.5">
                       {i + 1}
@@ -249,6 +244,7 @@ export default function CourseDetailPage() {
                 ))}
               </div>
             </section>
+            )}
 
             {/* About */}
             <section>
@@ -262,13 +258,14 @@ export default function CourseDetailPage() {
             </section>
 
             {/* Career roles */}
+            {roleBullets.length > 0 && (
             <section>
               <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-primary" />
                 Career Roles After This Course
               </h2>
               <div className="space-y-1.5">
-                {ROLE_BULLETS.map((role, i) => (
+                {roleBullets.map((role, i) => (
                   <div key={i} className="flex items-center gap-2.5 p-2.5 rounded-lg border border-border bg-card hover:bg-muted/40 transition-colors">
                     <ChevronRight className="w-3.5 h-3.5 text-primary flex-shrink-0" />
                     <span className="text-sm">{role}</span>
@@ -276,6 +273,7 @@ export default function CourseDetailPage() {
                 ))}
               </div>
             </section>
+            )}
 
             {/* ── Upcoming Batches ───────────────────────────────── */}
             <section id="batches">

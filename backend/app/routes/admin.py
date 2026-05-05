@@ -394,7 +394,7 @@ def list_orders():
             "discount_code": o.get("discount_code", ""),
             "status":        o.get("status", "pending"),
             "reference":     o.get("reference", ""),
-            "created_at":    o.get("created_at", ""),
+            "created_at":    o.get("created_id") or o.get("created_at", ""),
             "user_id":       uid,
             "course_id":     cid,
         })
@@ -477,7 +477,7 @@ def list_all_orders():
         user   = user_map.get(str(o.get("user_id")), {})
         course = course_map.get(str(o.get("course_id")), {})
         result.append({
-            "order_id":      o.get("order_id") or o.get("id", ""),
+            "order_id":      o.get("id") or o.get("order_id", ""),
             "user_id":       o.get("user_id", ""),
             "course_id":     o.get("course_id", ""),
             "student_name":  user.get("name", ""),
@@ -488,6 +488,6 @@ def list_all_orders():
             "amount_paid":   o.get("amount", 0),
             "status":        o.get("status", "pending"),
             "reference":     o.get("reference", ""),
-            "created_at":    o.get("created_at", ""),
+            "created_at":    o.get("created_id") or o.get("created_at", ""),
         })
     return result

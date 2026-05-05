@@ -54,6 +54,24 @@ def admin_stats():
     }
 
 
+# ── Users ────────────────────────────────────────────────────────────────────
+
+@router.get("/users", dependencies=[Depends(require_admin)])
+def list_users():
+    """List all registered users."""
+    users = get_sheet("users").get_all_records()
+    return [
+        {
+            "id":         str(u.get("id", "")),
+            "name":       u.get("name", ""),
+            "email":      u.get("email", ""),
+            "created_at": u.get("created_at", ""),
+        }
+        for u in users
+        if u.get("id")  # skip empty rows
+    ]
+
+
 # ── Courses ───────────────────────────────────────────────────────────────────
 
 class CourseCreate(BaseModel):

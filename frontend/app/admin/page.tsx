@@ -693,24 +693,18 @@ export default function AdminDashboard() {
         const headers = { 'Authorization': `Bearer ${adminToken}` }
         try {
           const [uRes, cRes, pRes] = await Promise.all([
-            fetch(`${API}/admin/enrollments`, { headers }),
+            fetch(`${API}/admin/users`, { headers }),
             fetch(`${API}/admin/courses`, { headers }),
             fetch(`${API}/admin/instalment-plans`, { headers }),
           ])
           if (uRes.ok) {
-            const enrollments = await uRes.json()
-            // extract unique users from enrollments
-            const seen = new Set()
-            const users: {id: string; name: string; email: string}[] = []
-            for (const e of enrollments) {
-              if (!seen.has(e.user_id)) {
-                seen.add(e.user_id)
-                users.push({ id: e.user_id, name: e.student_name, email: e.student_email })
-              }
-            }
-            setPlanUsers(users)
+            const users = await uRes.json()
+            setPlanUsers(users.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
           }
-          if (cRes.ok) setPlanCourses(await cRes.json())
+          if (cRes.ok) {
+            const courses = await cRes.json()
+            setPlanCourses(courses.map((c: any) => ({ id: c.id, title: c.title, price: Number(c.price) })))
+          }
           if (pRes.ok) setPlanList(await pRes.json())
         } catch {}
       } else if (tab === 'enrollments') {
@@ -1121,17 +1115,39 @@ export default function AdminDashboard() {
                 <h3 className="font-bold text-base mb-1">Create Instalment Plan</h3>
                 <p className="text-xs text-muted-foreground mb-4">After agreeing terms with a student, create a plan here. The part-payment option will appear on their checkout automatically.</p>
                 <div className="grid sm:grid-cols-3 gap-3">
-                  <div>
+                  <div className="relative">
                     <label className="text-xs font-medium block mb-1">Student Email *</label>
                     <Input
-                      placeholder="Search by email..."
+                      placeholder="Type email to search..."
                       value={planForm.user_email}
                       onChange={e => { setPlanForm(f => ({...f, user_email: e.target.value})); setPlanError(''); setPlanSuccess('') }}
-                      list="plan-users-list"
+                      autoComplete="off"
                     />
-                    <datalist id="plan-users-list">
-                      {planUsers.map(u => <option key={u.id} value={u.email} label={u.name} />)}
-                    </datalist>
+                    {planForm.user_email.length > 1 && (() => {
+                      const matches = planUsers.filter(u =>
+                        u.email.toLowerCase().includes(planForm.user_email.toLowerCase()) ||
+                        u.name.toLowerCase().includes(planForm.user_email.toLowerCase())
+                      ).slice(0, 6)
+                      return matches.length > 0 ? (
+                        <div className="absolute z-20 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
+                          {matches.map(u => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b border-border last:border-0"
+                              onClick={() => { setPlanForm(f => ({...f, user_email: u.email})); setPlanError(''); setPlanSuccess('') }}
+                            >
+                              <span className="font-medium">{u.name}</span>
+                              <span className="text-muted-foreground ml-2 text-xs">{u.email}</span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : planUsers.length > 0 ? (
+                        <div className="absolute z-20 w-full mt-1 bg-background border border-border rounded-lg shadow-sm px-3 py-2 text-xs text-muted-foreground">
+                          No student found with that email
+                        </div>
+                      ) : null
+                    })()}
                   </div>
                   <div>
                     <label className="text-xs font-medium block mb-1">Course *</label>

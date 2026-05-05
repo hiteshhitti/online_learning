@@ -689,7 +689,7 @@ export default function AdminDashboard() {
       } else if (tab === 'instalments') {
         // Load users, courses and existing plans for the plan creator
         const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const adminToken = localStorage.getItem('adminToken') || ''
+        const adminToken = sessionStorage.getItem('adminToken') || ''
         const headers = { 'Authorization': `Bearer ${adminToken}` }
         try {
           const [uRes, cRes, pRes] = await Promise.all([
@@ -1198,7 +1198,7 @@ export default function AdminDashboard() {
                     setPlanLoading(true)
                     try {
                       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                      const adminToken = localStorage.getItem('adminToken') || ''
+                      const adminToken = sessionStorage.getItem('adminToken') || ''
                       const res = await fetch(`${API}/admin/instalment-plans`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
@@ -1245,7 +1245,7 @@ export default function AdminDashboard() {
                             <td className="px-4 py-3">
                               <Button size="sm" variant="destructive" onClick={async () => {
                                 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                                const adminToken = localStorage.getItem('adminToken') || ''
+                                const adminToken = sessionStorage.getItem('adminToken') || ''
                                 await fetch(`${API}/admin/instalment-plans/${p.plan_id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${adminToken}` } })
                                 setPlanList(pl => pl.filter(x => x.plan_id !== p.plan_id))
                                 toast.success('Plan removed')

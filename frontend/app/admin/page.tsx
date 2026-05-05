@@ -701,26 +701,32 @@ export default function AdminDashboard() {
       } else if (tab === 'courses') {
         setCourses(await adminApi.getCourses())
       } else if (tab === 'instalments') {
-        // Load users, courses and existing plans for the plan creator
-        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-        const adminToken = sessionStorage.getItem('adminToken') || ''
-        const headers: Record<string, string> = { 'X-Admin-Token': adminToken }
+        // Use adminApi which has correct auth headers built in
         try {
-          const [uRes, cRes, pRes] = await Promise.all([
-            fetch(`${API}/admin/users`, { headers }),
-            fetch(`${API}/admin/courses`, { headers }),
-            fetch(`${API}/admin/instalment-plans`, { headers }),
+          const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+          const token = sessionStorage.getItem('adminToken') || ''
+          const h = { 'X-Admin-Token': token, 'Content-Type': 'application/json' }
+          
+          const [coursesData, usersRes, plansRes] = await Promise.all([
+            adminApi.getCourses(),
+            fetch(`${API}/admin/users`, { headers: h }),
+            fetch(`${API}/admin/instalment-plans`, { headers: h }),
           ])
-          if (uRes.ok) {
-            const users = await uRes.json()
-            setPlanUsers(users.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+          
+          setPlanCourses((coursesData || []).map((c: any) => ({ id: c.id, title: c.title, price: Number(c.price) })))
+          
+          if (usersRes.ok) {
+            const usersData = await usersRes.json()
+            setPlanUsers((usersData || []).map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+          } else {
+            console.error('Users fetch failed:', usersRes.status)
           }
-          if (cRes.ok) {
-            const courses = await cRes.json()
-            setPlanCourses(courses.map((c: any) => ({ id: c.id, title: c.title, price: Number(c.price) })))
+          
+          if (plansRes.ok) {
+            const plansData = await plansRes.json()
+            if (Array.isArray(plansData)) setPlanList(plansData)
           }
-          if (pRes.ok) setPlanList(await pRes.json())
-        } catch {}
+        } catch (e) { console.error('Instalment tab load error:', e) }
       } else if (tab === 'enrollments') {
         setEnrollments(await adminApi.getEnrollments(filterDiscount || undefined))
       } else if (tab === 'enquiries') {
@@ -1205,28 +1211,67 @@ export default function AdminDashboard() {
                   disabled={planLoading}
                   onClick={async () => {
                     setPlanError(''); setPlanSuccess('')
-                    const user = planUsers.find(u => u.email.toLowerCase() === planForm.user_email.toLowerCase())
-                    if (!user) { setPlanError('Student email not found. They must have an account.'); return }
+
+                    // Validate fields
+                    if (!planForm.user_email.trim()) { setPlanError('Please enter student email'); return }
                     if (!planForm.course_id) { setPlanError('Please select a course'); return }
                     if (!planForm.num_instalments || Number(planForm.num_instalments) < 2) { setPlanError('Minimum 2 instalments required'); return }
+
+                    // Look up user fresh from backend at submit time (don't rely on cached list)
+                    let user = planUsers.find(u => u.email.toLowerCase() === planForm.user_email.trim().toLowerCase())
+                    if (!user) {
+                      // Try fetching fresh from backend
+                      try {
+                        const uRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/users`, {
+                          headers: { 'X-Admin-Token': sessionStorage.getItem('adminToken') || '' }
+                        })
+                        if (uRes.ok) {
+                          const freshUsers = await uRes.json()
+                          setPlanUsers(freshUsers.map((u: any) => ({ id: u.id, name: u.name, email: u.email })))
+                          user = freshUsers.find((u: any) => u.email.toLowerCase() === planForm.user_email.trim().toLowerCase())
+                        }
+                      } catch {}
+                    }
+                    if (!user) {
+                      setPlanError(`Student email not found. Make sure they have registered an account first.`)
+                      return
+                    }
+
                     setPlanLoading(true)
                     try {
                       const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
                       const adminToken = sessionStorage.getItem('adminToken') || ''
+                      const headers = { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken }
+
                       const res = await fetch(`${API}/admin/instalment-plans`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken || '' },
-                        body: JSON.stringify({ user_id: user.id, course_id: planForm.course_id, num_instalments: Number(planForm.num_instalments) })
+                        headers,
+                        body: JSON.stringify({
+                          user_id: user.id,
+                          course_id: planForm.course_id,
+                          num_instalments: Number(planForm.num_instalments)
+                        })
                       })
-                      const data = await res.json()
-                      if (!res.ok) { setPlanError(data.detail || 'Failed to create plan'); return }
-                      setPlanSuccess(`Plan created! ${data.num_instalments} × ₹${data.emi_amount} per instalment.`)
+
+                      let data: any = {}
+                      try { data = await res.json() } catch {}
+
+                      if (!res.ok) {
+                        setPlanError(data.detail || `Server error ${res.status}. Check that 'instalment_plans' sheet exists in Google Sheets.`)
+                        return
+                      }
+
+                      setPlanSuccess(`✅ Plan created! ${data.num_instalments} instalments of ₹${data.emi_amount} each.`)
                       setPlanForm({ user_email: '', course_id: '', num_instalments: '' })
+
                       // Refresh plan list
-                      const pRes = await fetch(`${API}/admin/instalment-plans`, { headers: { 'X-Admin-Token': adminToken || '' } })
+                      const pRes = await fetch(`${API}/admin/instalment-plans`, { headers: { 'X-Admin-Token': adminToken } })
                       if (pRes.ok) setPlanList(await pRes.json())
-                    } catch { setPlanError('Network error. Try again.') }
-                    finally { setPlanLoading(false) }
+                    } catch (e: any) {
+                      setPlanError(`Network error: ${e?.message || 'Try again'}`)
+                    } finally {
+                      setPlanLoading(false)
+                    }
                   }}
                 >
                   {planLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : <>Create Plan</>}

@@ -369,6 +369,98 @@ def process_payout(member_id: str, body: PayoutCreate):
     return {"msg": f"Payout processed for {len(pending)} referrals", "referral_count": len(pending)}
 
 
+# ── Instalment Plans ─────────────────────────────────────────────────────────
+
+class InstalmentPlanCreate(BaseModel):
+    user_id: str
+    course_id: str
+    num_instalments: int        # e.g. 4 means 4 equal parts
+
+@router.post("/instalment-plans", dependencies=[Depends(require_admin)])
+def create_instalment_plan(payload: InstalmentPlanCreate):
+    """
+    Admin enables part payment for a specific student+course combo.
+    Calculates EMI = course_price / num_instalments.
+    Stores in 'instalment_plans' sheet.
+    """
+    courses = get_sheet("courses").get_all_records()
+    course  = next((c for c in courses if str(c.get("id")) == str(payload.course_id)), None)
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    price = float(course.get("price", 0) or 0)
+    if price <= 0:
+        raise HTTPException(status_code=400, detail="Course has no price set")
+    if payload.num_instalments < 2:
+        raise HTTPException(status_code=400, detail="Minimum 2 instalments required")
+
+    emi = round(price / payload.num_instalments, 2)
+
+    # Check if plan already exists for this user+course
+    sheet = get_sheet("instalment_plans")
+    existing = sheet.get_all_records()
+    for r in existing:
+        if str(r.get("user_id")) == str(payload.user_id) and str(r.get("course_id")) == str(payload.course_id):
+            raise HTTPException(status_code=400, detail="Instalment plan already exists for this student and course")
+
+    plan_id = str(uuid.uuid4())
+    sheet.append_row([
+        plan_id,
+        payload.user_id,
+        payload.course_id,
+        payload.num_instalments,
+        emi,
+        price,
+        "active",
+        str(datetime.now()),
+    ])
+    return {
+        "msg": "Instalment plan created",
+        "plan_id": plan_id,
+        "num_instalments": payload.num_instalments,
+        "emi_amount": emi,
+        "total_price": price,
+    }
+
+@router.get("/instalment-plans", dependencies=[Depends(require_admin)])
+def list_instalment_plans():
+    """List all instalment plans with student and course details."""
+    plans   = get_sheet("instalment_plans").get_all_records()
+    users   = {str(u["id"]): u for u in get_sheet("users").get_all_records()}
+    courses = {str(c["id"]): c for c in get_sheet("courses").get_all_records()}
+
+    result = []
+    for p in plans:
+        u = users.get(str(p.get("user_id", "")), {})
+        c = courses.get(str(p.get("course_id", "")), {})
+        result.append({
+            "plan_id":         p.get("id", ""),
+            "user_id":         p.get("user_id", ""),
+            "course_id":       p.get("course_id", ""),
+            "student_name":    u.get("name", "—"),
+            "student_email":   u.get("email", "—"),
+            "course_title":    c.get("title", "—"),
+            "course_price":    p.get("total_price", 0),
+            "num_instalments": p.get("num_instalments", 0),
+            "emi_amount":      p.get("emi_amount", 0),
+            "status":          p.get("status", "active"),
+            "created_at":      p.get("created_at", ""),
+        })
+    result.sort(key=lambda x: x.get("created_at", ""), reverse=True)
+    return result
+
+@router.delete("/instalment-plans/{plan_id}", dependencies=[Depends(require_admin)])
+def delete_instalment_plan(plan_id: str):
+    """Remove an instalment plan (disables part payment for that student)."""
+    sheet = get_sheet("instalment_plans")
+    rows  = sheet.get_all_records()
+    for i, r in enumerate(rows, start=2):
+        if str(r.get("id", "")) == plan_id:
+            sheet.delete_rows(i)
+            return {"msg": "Instalment plan removed"}
+    raise HTTPException(status_code=404, detail="Plan not found")
+
+
 # ── Orders & Enrollment Activation ───────────────────────────────────────────
 
 @router.get("/orders", dependencies=[Depends(require_admin)])
@@ -385,7 +477,7 @@ def list_orders():
         u = users.get(uid, {})
         c = courses.get(cid, {})
         result.append({
-            "order_id":      o.get("order_id", ""),
+            "order_id":      o.get("id") or o.get("order_id", ""),
             "student_name":  u.get("name", "—"),
             "student_email": u.get("email", "—"),
             "course_title":  c.get("title", "—"),
@@ -394,7 +486,7 @@ def list_orders():
             "discount_code": o.get("discount_code", ""),
             "status":        o.get("status", "pending"),
             "reference":     o.get("reference", ""),
-            "created_at":    o.get("created_id") or o.get("created_at", ""),
+            "created_at":    o.get("created_at", ""),
             "user_id":       uid,
             "course_id":     cid,
         })
@@ -418,7 +510,7 @@ def activate_order(order_id: str):
     target = None
     target_row = None
     for i, r in enumerate(rows, start=2):
-        if str(r.get("order_id", "")) == order_id:
+        if str(r.get("id") or r.get("order_id", "")) == order_id:
             target = r
             target_row = i
             break
@@ -455,39 +547,108 @@ def reject_order(order_id: str):
     rows = orders_sheet.get_all_records()
 
     for i, r in enumerate(rows, start=2):
-        if str(r.get("order_id", "")) == order_id:
+        if str(r.get("id") or r.get("order_id", "")) == order_id:
             orders_sheet.update_cell(i, 9, "rejected")
             return {"msg": "Order rejected", "order_id": order_id}
 
     raise HTTPException(status_code=404, detail="Order not found")
 
 
-@router.get("/orders", dependencies=[Depends(require_admin)])
-def list_all_orders():
-    """List all orders with student and course details for instalment management."""
-    orders      = get_sheet("orders").get_all_records()
-    users       = get_sheet("users").get_all_records()
-    courses     = get_sheet("courses").get_all_records()
+# ── Instalment Payments ───────────────────────────────────────────────────────
 
-    user_map   = {str(u.get("id")): u for u in users}
-    course_map = {str(c.get("id")): c for c in courses}
+@router.get("/instalment-plans/check")
+def check_instalment_plan(user_id: str, course_id: str):
+    """
+    Called by checkout page to check if part payment is enabled for this student+course.
+    Returns plan details if exists, else returns enabled: false.
+    """
+    plans = get_sheet("instalment_plans").get_all_records()
+    plan  = next(
+        (p for p in plans
+         if str(p.get("user_id")) == str(user_id)
+         and str(p.get("course_id")) == str(course_id)
+         and str(p.get("status", "active")).lower() == "active"),
+        None
+    )
+    if not plan:
+        return {"enabled": False}
+    return {
+        "enabled":         True,
+        "plan_id":         plan.get("id", ""),
+        "num_instalments": int(plan.get("num_instalments", 0)),
+        "emi_amount":      float(plan.get("emi_amount", 0)),
+        "total_price":     float(plan.get("total_price", 0)),
+    }
 
-    result = []
-    for o in orders:
-        user   = user_map.get(str(o.get("user_id")), {})
-        course = course_map.get(str(o.get("course_id")), {})
-        result.append({
-            "order_id":      o.get("id") or o.get("order_id", ""),
-            "user_id":       o.get("user_id", ""),
-            "course_id":     o.get("course_id", ""),
-            "student_name":  user.get("name", ""),
-            "student_email": user.get("email", ""),
-            "course_title":  course.get("title", ""),
-            "course_price":  course.get("price", 0),
-            "amount":        o.get("amount", 0),
-            "amount_paid":   o.get("amount", 0),
-            "status":        o.get("status", "pending"),
-            "reference":     o.get("reference", ""),
-            "created_at":    o.get("created_id") or o.get("created_at", ""),
-        })
-    return result
+
+@router.post("/orders/{order_id}/instalments", dependencies=[Depends(require_admin)])
+def add_instalment(order_id: str, payload: dict):
+    """Record a part payment. Auto-enrolls when total paid >= full amount."""
+    from app.utils.helpers import enroll_user as _enroll
+
+    inst_sheet   = get_sheet("instalments")
+    orders_sheet = get_sheet("orders")
+
+    all_instalments = inst_sheet.get_all_records()
+    previous_paid   = sum(
+        float(i.get("amount", 0) or 0)
+        for i in all_instalments
+        if str(i.get("order_id")) == str(order_id)
+    )
+
+    new_amount = float(payload.get("amount", 0))
+    total_paid = previous_paid + new_amount
+
+    inst_sheet.append_row([
+        str(uuid.uuid4()),
+        order_id,
+        payload.get("user_id", ""),
+        payload.get("course_id", ""),
+        new_amount,
+        payload.get("reference", ""),
+        payload.get("note", ""),
+        str(datetime.now()),
+    ])
+
+    # Get full amount from order
+    all_orders = orders_sheet.get_all_records()
+    order_row  = next(
+        (o for o in all_orders
+         if str(o.get("id") or o.get("order_id", "")) == str(order_id)),
+        None
+    )
+    full_amount = float((order_row or {}).get("full_amount") or (order_row or {}).get("amount") or 0)
+    fully_paid  = full_amount > 0 and total_paid >= full_amount
+
+    if fully_paid and order_row:
+        for i, o in enumerate(all_orders, start=2):
+            if str(o.get("id") or o.get("order_id", "")) == str(order_id):
+                headers = orders_sheet.row_values(1)
+                if "status" in headers:
+                    orders_sheet.update_cell(i, headers.index("status") + 1, "active")
+                try:
+                    _enroll(payload.get("user_id"), payload.get("course_id"))
+                except Exception as e:
+                    print(f"Enroll error: {e}")
+                break
+
+    return {
+        "msg":          "Instalment recorded",
+        "previous_paid": previous_paid,
+        "this_payment":  new_amount,
+        "total_paid":    total_paid,
+        "full_amount":   full_amount,
+        "fully_paid":    fully_paid,
+        "enrolled":      fully_paid,
+    }
+
+
+@router.get("/orders/{order_id}/instalments", dependencies=[Depends(require_admin)])
+def get_instalments(order_id: str):
+    sheet = get_sheet("instalments")
+    rows  = [i for i in sheet.get_all_records() if str(i.get("order_id")) == str(order_id)]
+    return {
+        "order_id":   order_id,
+        "instalments": rows,
+        "total_paid":  sum(float(r.get("amount", 0) or 0) for r in rows),
+    }

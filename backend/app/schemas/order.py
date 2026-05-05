@@ -6,10 +6,12 @@ class OrderCreate(BaseModel):
     user_id: str
     course_id: str
     amount: float
+    full_amount: Optional[float] = None      # total course price (after discount+tax)
+    payment_type: Optional[str] = 'full'     # 'full' or 'part'
     discount_code: Optional[str] = None
     discount_amount: Optional[float] = 0.0
     reference: Optional[str] = None
-    batch_id: Optional[str] = None      # ← new field
+    batch_id: Optional[str] = None
 
 
 class OrderOut(BaseModel):

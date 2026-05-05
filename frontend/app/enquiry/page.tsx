@@ -94,8 +94,8 @@ export default function EnquiryPage() {
           {/* Info */}
           <div className="space-y-6">
             {[
-              { icon: '📧', title: 'Email', info: 'hello@learnhub.com' },
-              { icon: '📞', title: 'Phone', info: '+1 (555) 123-4567' },
+              { icon: '📧', title: 'Email', info: 'uitcec@gmail.com' },
+              { icon: '📞', title: 'Phone', info: '+91 82647 69689' },
               { icon: '⏰', title: 'Response Time', info: 'Within 24–48 hours' },
             ].map(({ icon, title, info }) => (
               <Card key={title} className="p-4">

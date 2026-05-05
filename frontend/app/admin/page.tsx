@@ -690,7 +690,7 @@ export default function AdminDashboard() {
         // Load users, courses and existing plans for the plan creator
         const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const adminToken = sessionStorage.getItem('adminToken') || ''
-        const headers = { 'Authorization': `Bearer ${adminToken}` }
+        const headers = { 'X-Admin-Token': adminToken || '' }
         try {
           const [uRes, cRes, pRes] = await Promise.all([
             fetch(`${API}/admin/users`, { headers }),
@@ -1201,7 +1201,7 @@ export default function AdminDashboard() {
                       const adminToken = sessionStorage.getItem('adminToken') || ''
                       const res = await fetch(`${API}/admin/instalment-plans`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': adminToken || '' },
                         body: JSON.stringify({ user_id: user.id, course_id: planForm.course_id, num_instalments: Number(planForm.num_instalments) })
                       })
                       const data = await res.json()
@@ -1209,7 +1209,7 @@ export default function AdminDashboard() {
                       setPlanSuccess(`Plan created! ${data.num_instalments} × ₹${data.emi_amount} per instalment.`)
                       setPlanForm({ user_email: '', course_id: '', num_instalments: '' })
                       // Refresh plan list
-                      const pRes = await fetch(`${API}/admin/instalment-plans`, { headers: { 'Authorization': `Bearer ${adminToken}` } })
+                      const pRes = await fetch(`${API}/admin/instalment-plans`, { headers: { 'X-Admin-Token': adminToken || '' } })
                       if (pRes.ok) setPlanList(await pRes.json())
                     } catch { setPlanError('Network error. Try again.') }
                     finally { setPlanLoading(false) }
@@ -1246,7 +1246,7 @@ export default function AdminDashboard() {
                               <Button size="sm" variant="destructive" onClick={async () => {
                                 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
                                 const adminToken = sessionStorage.getItem('adminToken') || ''
-                                await fetch(`${API}/admin/instalment-plans/${p.plan_id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${adminToken}` } })
+                                await fetch(`${API}/admin/instalment-plans/${p.plan_id}`, { method: 'DELETE', headers: { 'X-Admin-Token': adminToken || '' } })
                                 setPlanList(pl => pl.filter(x => x.plan_id !== p.plan_id))
                                 toast.success('Plan removed')
                               }}>Remove</Button>

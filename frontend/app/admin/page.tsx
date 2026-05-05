@@ -657,6 +657,13 @@ export default function AdminDashboard() {
   const [editCourse, setEditCourse]       = useState<AdminCourse | null | undefined>(undefined)
   const [instalments, setInstalments]     = useState<Record<string, {amount: number; reference: string; note: string; created_at: string}[]>>({})
   const [instalmentOrder, setInstalmentOrder] = useState<{order_id: string; user_id: string; course_id: string; course_title: string; amount_paid: number} | null>(null)
+  const [planForm, setPlanForm] = useState({ user_email: '', course_id: '', num_instalments: '' })
+  const [planUsers, setPlanUsers] = useState<{id: string; name: string; email: string}[]>([])
+  const [planCourses, setPlanCourses] = useState<{id: string; title: string; price: number}[]>([])
+  const [planList, setPlanList] = useState<any[]>([])
+  const [planLoading, setPlanLoading] = useState(false)
+  const [planError, setPlanError] = useState('')
+  const [planSuccess, setPlanSuccess] = useState('')
   const [instalmentForm, setInstalmentForm]   = useState({ amount: '', reference: '', note: '' })
   const [instalmentLoading, setInstalmentLoading] = useState(false)
   const [editBatch, setEditBatch]         = useState<ApiBatch | null | undefined>(undefined)
@@ -680,13 +687,31 @@ export default function AdminDashboard() {
       } else if (tab === 'courses') {
         setCourses(await adminApi.getCourses())
       } else if (tab === 'instalments') {
-        // fetch all orders with pending/part-paid status
+        // Load users, courses and existing plans for the plan creator
+        const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+        const adminToken = localStorage.getItem('adminToken') || ''
+        const headers = { 'Authorization': `Bearer ${adminToken}` }
         try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/orders/`)
-          if (res.ok) {
-            const data = await res.json()
-            setInstalments(data)
+          const [uRes, cRes, pRes] = await Promise.all([
+            fetch(`${API}/admin/enrollments`, { headers }),
+            fetch(`${API}/admin/courses`, { headers }),
+            fetch(`${API}/admin/instalment-plans`, { headers }),
+          ])
+          if (uRes.ok) {
+            const enrollments = await uRes.json()
+            // extract unique users from enrollments
+            const seen = new Set()
+            const users: {id: string; name: string; email: string}[] = []
+            for (const e of enrollments) {
+              if (!seen.has(e.user_id)) {
+                seen.add(e.user_id)
+                users.push({ id: e.user_id, name: e.student_name, email: e.student_email })
+              }
+            }
+            setPlanUsers(users)
           }
+          if (cRes.ok) setPlanCourses(await cRes.json())
+          if (pRes.ok) setPlanList(await pRes.json())
         } catch {}
       } else if (tab === 'enrollments') {
         setEnrollments(await adminApi.getEnrollments(filterDiscount || undefined))
@@ -1089,11 +1114,143 @@ export default function AdminDashboard() {
 
           {/* ── Instalments ── */}
           {!loading && activeTab === 'instalments' && (
-            <div className="space-y-4">
-              <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-sm text-amber-800 dark:text-amber-200">
-                <strong>Part Payments:</strong> Find a student's order below and click <em>Add Payment</em> to record each instalment. The student is automatically enrolled once total paid ≥ course price.
+            <div className="space-y-6">
+
+              {/* ── Create New Instalment Plan ── */}
+              <Card className="p-5">
+                <h3 className="font-bold text-base mb-1">Create Instalment Plan</h3>
+                <p className="text-xs text-muted-foreground mb-4">After agreeing terms with a student, create a plan here. The part-payment option will appear on their checkout automatically.</p>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Student Email *</label>
+                    <Input
+                      placeholder="Search by email..."
+                      value={planForm.user_email}
+                      onChange={e => { setPlanForm(f => ({...f, user_email: e.target.value})); setPlanError(''); setPlanSuccess('') }}
+                      list="plan-users-list"
+                    />
+                    <datalist id="plan-users-list">
+                      {planUsers.map(u => <option key={u.id} value={u.email} label={u.name} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Course *</label>
+                    <select
+                      className="w-full h-9 px-3 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      value={planForm.course_id}
+                      onChange={e => { setPlanForm(f => ({...f, course_id: e.target.value})); setPlanError(''); setPlanSuccess('') }}
+                    >
+                      <option value="">Select course</option>
+                      {planCourses.map(c => <option key={c.id} value={c.id}>{c.title} — ₹{Number(c.price).toLocaleString('en-IN')}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1">No. of Instalments *</label>
+                    <Input
+                      type="number" min={2} max={24}
+                      placeholder="e.g. 4"
+                      value={planForm.num_instalments}
+                      onChange={e => { setPlanForm(f => ({...f, num_instalments: e.target.value})); setPlanError(''); setPlanSuccess('') }}
+                    />
+                  </div>
+                </div>
+
+                {/* EMI Preview */}
+                {planForm.course_id && planForm.num_instalments && Number(planForm.num_instalments) >= 2 && (() => {
+                  const course = planCourses.find(c => c.id === planForm.course_id)
+                  const emi = course ? Math.round(course.price / Number(planForm.num_instalments) * 100) / 100 : 0
+                  return course ? (
+                    <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4 text-primary shrink-0" />
+                      <span><strong>{planForm.num_instalments} instalments</strong> of <strong>₹{emi.toLocaleString('en-IN')}</strong> each for <strong>{course.title}</strong> (Total: ₹{Number(course.price).toLocaleString('en-IN')})</span>
+                    </div>
+                  ) : null
+                })()}
+
+                {planError && <p className="text-xs text-red-500 mt-2 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{planError}</p>}
+                {planSuccess && <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" />{planSuccess}</p>}
+
+                <Button
+                  className="mt-4"
+                  disabled={planLoading}
+                  onClick={async () => {
+                    setPlanError(''); setPlanSuccess('')
+                    const user = planUsers.find(u => u.email.toLowerCase() === planForm.user_email.toLowerCase())
+                    if (!user) { setPlanError('Student email not found. They must have an account.'); return }
+                    if (!planForm.course_id) { setPlanError('Please select a course'); return }
+                    if (!planForm.num_instalments || Number(planForm.num_instalments) < 2) { setPlanError('Minimum 2 instalments required'); return }
+                    setPlanLoading(true)
+                    try {
+                      const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+                      const adminToken = localStorage.getItem('adminToken') || ''
+                      const res = await fetch(`${API}/admin/instalment-plans`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${adminToken}` },
+                        body: JSON.stringify({ user_id: user.id, course_id: planForm.course_id, num_instalments: Number(planForm.num_instalments) })
+                      })
+                      const data = await res.json()
+                      if (!res.ok) { setPlanError(data.detail || 'Failed to create plan'); return }
+                      setPlanSuccess(`Plan created! ${data.num_instalments} × ₹${data.emi_amount} per instalment.`)
+                      setPlanForm({ user_email: '', course_id: '', num_instalments: '' })
+                      // Refresh plan list
+                      const pRes = await fetch(`${API}/admin/instalment-plans`, { headers: { 'Authorization': `Bearer ${adminToken}` } })
+                      if (pRes.ok) setPlanList(await pRes.json())
+                    } catch { setPlanError('Network error. Try again.') }
+                    finally { setPlanLoading(false) }
+                  }}
+                >
+                  {planLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : <>Create Plan</>}
+                </Button>
+              </Card>
+
+              {/* ── Existing Plans ── */}
+              {planList.length > 0 && (
+                <div>
+                  <h3 className="font-bold text-sm mb-3">Active Instalment Plans</h3>
+                  <div className="overflow-x-auto rounded-lg border border-border">
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted">
+                        <tr>
+                          {['Student', 'Email', 'Course', 'Instalments', 'EMI Amount', 'Total', 'Created', ''].map(h => (
+                            <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {planList.map((p, i) => (
+                          <tr key={i} className="hover:bg-muted/40">
+                            <td className="px-4 py-3 font-medium whitespace-nowrap">{p.student_name}</td>
+                            <td className="px-4 py-3 text-muted-foreground text-xs">{p.student_email}</td>
+                            <td className="px-4 py-3 max-w-[150px] truncate" title={p.course_title}>{p.course_title}</td>
+                            <td className="px-4 py-3 text-center">{p.num_instalments}</td>
+                            <td className="px-4 py-3 font-medium">₹{Number(p.emi_amount).toLocaleString('en-IN')}</td>
+                            <td className="px-4 py-3">₹{Number(p.course_price).toLocaleString('en-IN')}</td>
+                            <td className="px-4 py-3 text-xs text-muted-foreground">{p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}</td>
+                            <td className="px-4 py-3">
+                              <Button size="sm" variant="destructive" onClick={async () => {
+                                const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+                                const adminToken = localStorage.getItem('adminToken') || ''
+                                await fetch(`${API}/admin/instalment-plans/${p.plan_id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${adminToken}` } })
+                                setPlanList(pl => pl.filter(x => x.plan_id !== p.plan_id))
+                                toast.success('Plan removed')
+                              }}>Remove</Button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Record Payments ── */}
+              <div>
+                <h3 className="font-bold text-sm mb-3">Record Instalment Payments</h3>
+                <div className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-xs text-amber-800 dark:text-amber-200 mb-3">
+                  Find the student's order below and click <strong>+ Add Payment</strong> each time they pay an instalment.
+                </div>
+                <EnrolmentsForInstalments onAddPayment={setInstalmentOrder} />
               </div>
-              <EnrolmentsForInstalments onAddPayment={setInstalmentOrder} />
             </div>
           )}
           {instalmentOrder && (

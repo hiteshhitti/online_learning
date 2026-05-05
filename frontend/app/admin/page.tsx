@@ -235,9 +235,23 @@ function EnrolmentsForInstalments({
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`${API}/admin/orders`, { headers: { 'x-admin-key': 'admin' } })
-      .then(r => r.json())
-      .then(d => setOrders(Array.isArray(d) ? d : []))
+    const token = sessionStorage.getItem('adminToken') || ''
+    const headers = { 'X-Admin-Token': token }
+    // Fetch orders AND users sheet so we show all part-payment orders with real names
+    Promise.all([
+      fetch(`${API}/admin/orders`, { headers }).then(r => r.ok ? r.json() : []),
+      fetch(`${API}/admin/users`, { headers }).then(r => r.ok ? r.json() : []),
+    ])
+      .then(([ordersData, usersData]) => {
+        const userMap: Record<string, {name: string; email: string}> = {}
+        for (const u of usersData) userMap[u.id] = { name: u.name, email: u.email }
+        const enriched = (Array.isArray(ordersData) ? ordersData : []).map((o: any) => ({
+          ...o,
+          student_name:  o.student_name  || userMap[o.user_id]?.name  || o.user_id,
+          student_email: o.student_email || userMap[o.user_id]?.email || '—',
+        }))
+        setOrders(enriched)
+      })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false))
   }, [])
@@ -690,7 +704,7 @@ export default function AdminDashboard() {
         // Load users, courses and existing plans for the plan creator
         const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
         const adminToken = sessionStorage.getItem('adminToken') || ''
-        const headers = { 'X-Admin-Token': adminToken || '' }
+        const headers: Record<string, string> = { 'X-Admin-Token': adminToken }
         try {
           const [uRes, cRes, pRes] = await Promise.all([
             fetch(`${API}/admin/users`, { headers }),

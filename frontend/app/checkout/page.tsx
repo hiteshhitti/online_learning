@@ -83,6 +83,9 @@ function CheckoutForm() {
   const [success, setSuccess] = useState(false)
   const [upiCopied, setUpiCopied] = useState(false)
   const [qrConfirmed, setQrConfirmed] = useState(false)
+  const [paymentType, setPaymentType] = useState<'full' | 'part'>('full')
+  const [partAmount, setPartAmount] = useState('')
+  const [partAmountError, setPartAmountError] = useState('')
 
   // Redirect back to course if no batch selected
   useEffect(() => {
@@ -111,7 +114,18 @@ function CheckoutForm() {
   const tax = course ? +(course.price * 0.1).toFixed(2) : 0
   const baseTotal = course ? +(subtotal + tax).toFixed(2) : 0
   const discountAmt = discount?.valid ? discount.discount_amount : 0
-  const finalTotal = Math.max(+(baseTotal - discountAmt).toFixed(2), 0)
+  const fullTotal = Math.max(+(baseTotal - discountAmt).toFixed(2), 0)
+  const partPay = paymentType === 'part' ? parseFloat(partAmount) || 0 : 0
+  const finalTotal = paymentType === 'part' ? partPay : fullTotal
+
+  const validatePartAmount = (val: string) => {
+    const num = parseFloat(val)
+    if (!val || isNaN(num) || num <= 0) { setPartAmountError('Enter a valid amount'); return false }
+    if (num >= fullTotal) { setPartAmountError(`For full payment enter ₹${fullTotal} or choose Full Payment`); return false }
+    if (num < 100) { setPartAmountError('Minimum part payment is ₹100'); return false }
+    setPartAmountError('')
+    return true
+  }
 
   const handleApplyDiscount = async () => {
     if (!discountCode.trim()) { toast.error('Enter a discount code first'); return }
@@ -144,6 +158,7 @@ function CheckoutForm() {
     if (!batchId) { toast.error('No batch selected'); return }
     if (!form.name || !form.email) { toast.error('Please fill in your name and email'); return }
     if (!form.agreed) { toast.error('Please accept the terms to continue'); return }
+    if (paymentType === 'part' && !validatePartAmount(partAmount)) { return }
 
     setLoading(true)
     try {
@@ -152,6 +167,8 @@ function CheckoutForm() {
         user_id: user!.id,
         course_id: course.id,
         amount: finalTotal,
+        full_amount: fullTotal,
+        payment_type: paymentType,
         discount_code: discount?.valid ? discount.code : undefined,
         batch_id: batchId || undefined,
         discount_amount: discountAmt,
@@ -352,6 +369,61 @@ function CheckoutForm() {
                 </div>
               </Card>
 
+              {/* Payment Type Toggle */}
+              <Card className="p-4">
+                <h2 className="text-sm font-bold mb-3">Payment Option</h2>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button
+                    onClick={() => { setPaymentType('full'); setPartAmountError('') }}
+                    className={`px-3 py-3 rounded-lg border text-sm font-medium transition-all text-left ${
+                      paymentType === 'full'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="font-semibold">Full Payment</div>
+                    <div className="text-xs mt-0.5 opacity-70">Pay the complete amount now</div>
+                  </button>
+                  <button
+                    onClick={() => setPaymentType('part')}
+                    className={`px-3 py-3 rounded-lg border text-sm font-medium transition-all text-left ${
+                      paymentType === 'part'
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="font-semibold">Part Payment</div>
+                    <div className="text-xs mt-0.5 opacity-70">Pay a portion now, rest later</div>
+                  </button>
+                </div>
+
+                {paymentType === 'part' && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium block">
+                      Amount to pay now <span className="text-red-500">*</span>
+                      <span className="text-muted-foreground ml-1">(Total: ₹{fullTotal.toLocaleString('en-IN')})</span>
+                    </label>
+                    <Input
+                      type="number"
+                      placeholder="e.g. 5000"
+                      value={partAmount}
+                      min={100}
+                      max={fullTotal - 1}
+                      onChange={e => { setPartAmount(e.target.value); validatePartAmount(e.target.value) }}
+                      className="h-8 text-sm"
+                    />
+                    {partAmountError && (
+                      <p className="text-xs text-red-500 flex items-center gap-1">
+                        <AlertCircle className="w-3 h-3" />{partAmountError}
+                      </p>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Remaining ₹{Math.max(fullTotal - (parseFloat(partAmount) || 0), 0).toLocaleString('en-IN')} can be paid later. Your enrollment will be activated once fully paid.
+                    </p>
+                  </div>
+                )}
+              </Card>
+
               {/* Discount Code */}
               <Card className="p-4">
                 <h2 className="text-sm font-bold mb-3 flex items-center gap-1.5">
@@ -428,11 +500,22 @@ function CheckoutForm() {
                     )}
                   </div>
                   <div className="flex justify-between font-bold text-base pt-3">
-                    <span>Total</span>
+                    <span>{paymentType === 'part' ? 'Paying Now' : 'Total'}</span>
                     <span className="flex items-center gap-0.5 text-primary">
                       <IndianRupee className="w-4 h-4" />{finalTotal.toLocaleString('en-IN')}
                     </span>
                   </div>
+                  {paymentType === 'part' && parseFloat(partAmount) > 0 && (
+                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                      <span>Remaining (pay later)</span>
+                      <span>₹{Math.max(fullTotal - parseFloat(partAmount), 0).toLocaleString('en-IN')}</span>
+                    </div>
+                  )}
+                  {paymentType === 'part' && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded p-2 mt-2">
+                      You will be enrolled only after full payment is received.
+                    </p>
+                  )}
 
                   {/* ── Payment Section ── */}
                   {QR_CONFIG.useCashfree ? (
@@ -476,7 +559,7 @@ function CheckoutForm() {
                             </button>
                           </div>
                           <a
-                            href={`https://wa.me/${QR_CONFIG.whatsappNumber}?text=${encodeURIComponent(`Hi! I've paid ₹${finalTotal} for the course. My name: ${form.name}, Email: ${form.email}`)}`}
+                            href={`https://wa.me/${QR_CONFIG.whatsappNumber}?text=${encodeURIComponent(`Hi! I've paid ₹${finalTotal} for the course${paymentType === 'part' ? ' (part payment)' : ''}. My name: ${form.name}, Email: ${form.email}`)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                           >
@@ -512,7 +595,8 @@ function CheckoutForm() {
                             </div>
 
                             <p className="text-xs text-muted-foreground text-center">
-                              Pay <strong className="text-foreground">₹{finalTotal.toLocaleString('en-IN')}</strong> to
+                              {paymentType === 'part' ? 'Part payment of' : 'Pay'}{' '}
+                              <strong className="text-foreground">₹{finalTotal.toLocaleString('en-IN')}</strong> to
                             </p>
 
                             {/* UPI ID copy row */}

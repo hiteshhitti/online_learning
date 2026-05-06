@@ -94,7 +94,7 @@ export function Footer() {
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold">L</span>
               </div>
-              <span className="font-bold text-lg">LearnHub</span>
+              <span className="font-bold text-lg">Ultimate Institute</span>
             </div>
             <p className="text-sm text-muted-foreground">Empowering learners worldwide with quality education and expert instruction.</p>
             <div className="flex gap-3">
@@ -146,7 +146,7 @@ export function Footer() {
 
         <div className="border-t border-border pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-muted-foreground">
-            <p>© 2026 LearnHub. All rights reserved.</p>
+            <p>© 2026 Ultimate Institute. All rights reserved.</p>
             <div className="flex gap-6">
               <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>

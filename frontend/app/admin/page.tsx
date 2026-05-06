@@ -1161,7 +1161,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="font-bold text-sm">Admin Panel</p>
-              <p className="text-xs text-muted-foreground">LearnHub</p>
+              <p className="text-xs text-muted-foreground">Ultimate Institute</p>
             </div>
           </div>
         </div>

@@ -13,7 +13,7 @@ const _geist = Geist({ subsets: ['latin'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'LearnHub - Online Learning Platform',
+  title: 'Ultimate Institute - Online Learning Platform',
   description:
     'Learn from industry experts with hands-on courses in web development, data science, design, and more.',
   generator: 'v0.app',

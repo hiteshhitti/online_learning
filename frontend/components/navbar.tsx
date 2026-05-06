@@ -37,7 +37,7 @@ export function Navbar() {
                 <span className="text-white font-bold text-lg">L</span>
               </div>
               <span className="font-bold text-lg text-foreground hidden sm:inline">
-                LearnHub
+                Ultimate Institute
               </span>
             </Link>
 

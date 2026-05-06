@@ -24,7 +24,7 @@ export default function PublicDashboardPage() {
       <section className="py-10 px-4 border-b border-border bg-card">
         <div className="max-w-6xl mx-auto">
           <h1 className="text-4xl font-bold">Learning Community</h1>
-          <p className="text-muted-foreground mt-2 text-lg">See what's happening on LearnHub right now</p>
+          <p className="text-muted-foreground mt-2 text-lg">See what's happening on Ultimate Institute right now</p>
         </div>
       </section>
 

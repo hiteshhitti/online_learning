@@ -49,7 +49,7 @@ export function AuthModal({ open, onClose }: AuthModalProps) {
         })
         // Auto-login after registration
         await login(form.email, form.password)
-        toast.success('Account created! Welcome to LearnHub.')
+        toast.success('Account created! Welcome to Ultimate Institute.')
       }
       onClose()
     } catch (err: unknown) {

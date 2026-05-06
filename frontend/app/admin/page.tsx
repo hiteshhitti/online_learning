@@ -321,6 +321,185 @@ function EnrolmentsForInstalments({
   )
 }
 
+
+// ─── Create Instalment Plan Card ─────────────────────────────────────────────
+function CreateInstalmentPlanCard({ onPlanCreated }: { onPlanCreated: (plan: any) => void }) {
+  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const getToken = () => sessionStorage.getItem('adminToken') || ''
+  const authHeaders = () => ({ 'X-Admin-Token': getToken(), 'Content-Type': 'application/json' })
+
+  const [users, setUsers]     = useState<{id: string; name: string; email: string}[]>([])
+  const [courses, setCourses] = useState<{id: string; title: string; price: number}[]>([])
+  const [loadingData, setLoadingData] = useState(false)
+  const [dataLoaded, setDataLoaded]   = useState(false)
+
+  const [email, setEmail]       = useState('')
+  const [courseId, setCourseId] = useState('')
+  const [numInst, setNumInst]   = useState('')
+  const [error, setError]       = useState('')
+  const [success, setSuccess]   = useState('')
+  const [saving, setSaving]     = useState(false)
+  const [showDropdown, setShowDropdown] = useState(false)
+
+  // Load users + courses when component mounts
+  useEffect(() => {
+    setLoadingData(true)
+    Promise.all([
+      fetch(`${API}/admin/users`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []).catch(() => []),
+      fetch(`${API}/admin/courses`, { headers: authHeaders() }).then(r => r.ok ? r.json() : []).catch(() => []),
+    ]).then(([u, c]) => {
+      setUsers(Array.isArray(u) ? u : [])
+      setCourses(Array.isArray(c) ? c.map((x: any) => ({ id: x.id, title: x.title, price: Number(x.price) })) : [])
+      setDataLoaded(true)
+    }).finally(() => setLoadingData(false))
+  }, [])
+
+  const filteredUsers = email.length > 1
+    ? users.filter(u =>
+        u.email.toLowerCase().includes(email.toLowerCase()) ||
+        u.name.toLowerCase().includes(email.toLowerCase())
+      ).slice(0, 6)
+    : []
+
+  const selectedCourse = courses.find(c => c.id === courseId)
+  const emi = selectedCourse && numInst && Number(numInst) >= 2
+    ? Math.round(selectedCourse.price / Number(numInst) * 100) / 100
+    : null
+
+  const handleCreate = async () => {
+    setError(''); setSuccess('')
+    if (!email.trim()) { setError('Enter student email'); return }
+    if (!courseId) { setError('Select a course'); return }
+    if (!numInst || Number(numInst) < 2) { setError('Minimum 2 instalments'); return }
+
+    const user = users.find(u => u.email.toLowerCase() === email.trim().toLowerCase())
+    if (!user) { setError(`No account found for "${email}". Student must register first.`); return }
+
+    setSaving(true)
+    try {
+      const res = await fetch(`${API}/admin/instalment-plans`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ user_id: user.id, course_id: courseId, num_instalments: Number(numInst) })
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) { setError(data.detail || `Error ${res.status}`); return }
+      setSuccess(`✅ Plan created — ${data.num_instalments} × ₹${data.emi_amount} each`)
+      setEmail(''); setCourseId(''); setNumInst('')
+      onPlanCreated(data)
+    } catch (e: any) {
+      setError(`Network error: ${e?.message}`)
+    } finally { setSaving(false) }
+  }
+
+  return (
+    <Card className="p-5">
+      <h3 className="font-bold text-base mb-1">Create Instalment Plan</h3>
+      <p className="text-xs text-muted-foreground mb-4">
+        After agreeing terms with a student, create a plan here. The part-payment option will appear on their checkout automatically.
+      </p>
+
+      {loadingData && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading students and courses...
+        </div>
+      )}
+
+      {dataLoaded && users.length === 0 && (
+        <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+          ⚠️ No users found. Make sure the backend is deployed with the latest <code>admin_route.py</code> that has the <code>/admin/users</code> endpoint.
+        </div>
+      )}
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        {/* Student Email with live dropdown */}
+        <div className="relative">
+          <label className="text-xs font-medium block mb-1">
+            Student Email * {dataLoaded && <span className="text-muted-foreground">({users.length} users)</span>}
+          </label>
+          <Input
+            placeholder="Type to search student..."
+            value={email}
+            autoComplete="off"
+            onChange={e => { setEmail(e.target.value); setError(''); setSuccess(''); setShowDropdown(true) }}
+            onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
+            onFocus={() => setShowDropdown(true)}
+          />
+          {showDropdown && filteredUsers.length > 0 && (
+            <div className="absolute z-30 w-full mt-1 bg-background border border-border rounded-lg shadow-xl overflow-hidden">
+              {filteredUsers.map(u => (
+                <button
+                  key={u.id}
+                  type="button"
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-muted transition-colors border-b border-border last:border-0"
+                  onMouseDown={() => { setEmail(u.email); setShowDropdown(false); setError(''); setSuccess('') }}
+                >
+                  <span className="font-medium block">{u.name}</span>
+                  <span className="text-muted-foreground text-xs">{u.email}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {showDropdown && email.length > 1 && filteredUsers.length === 0 && users.length > 0 && (
+            <div className="absolute z-30 w-full mt-1 bg-background border border-border rounded-lg shadow px-3 py-2 text-xs text-muted-foreground">
+              No student found
+            </div>
+          )}
+        </div>
+
+        {/* Course dropdown */}
+        <div>
+          <label className="text-xs font-medium block mb-1">
+            Course * {dataLoaded && <span className="text-muted-foreground">({courses.length} courses)</span>}
+          </label>
+          <select
+            className="w-full h-9 px-3 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+            value={courseId}
+            onChange={e => { setCourseId(e.target.value); setError(''); setSuccess('') }}
+          >
+            <option value="">{courses.length === 0 ? 'Loading...' : 'Select course'}</option>
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>
+                {c.title} — ₹{c.price.toLocaleString('en-IN')}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* No. of Instalments */}
+        <div>
+          <label className="text-xs font-medium block mb-1">No. of Instalments *</label>
+          <Input
+            type="number" min={2} max={24}
+            placeholder="e.g. 4"
+            value={numInst}
+            onChange={e => { setNumInst(e.target.value); setError(''); setSuccess('') }}
+          />
+        </div>
+      </div>
+
+      {/* EMI Preview */}
+      {emi && selectedCourse && (
+        <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm flex items-center gap-2">
+          <CheckCircle className="w-4 h-4 text-primary shrink-0" />
+          <span>
+            <strong>{numInst} instalments</strong> of <strong>₹{emi.toLocaleString('en-IN')}</strong> each
+            for <strong>{selectedCourse.title}</strong>
+            <span className="text-muted-foreground ml-1">(Total: ₹{selectedCourse.price.toLocaleString('en-IN')})</span>
+          </span>
+        </div>
+      )}
+
+      {error   && <p className="text-xs text-red-500 mt-3 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
+      {success && <p className="text-xs text-green-600 mt-3 flex items-center gap-1"><CheckCircle className="w-3 h-3" />{success}</p>}
+
+      <Button className="mt-4" disabled={saving || loadingData} onClick={handleCreate}>
+        {saving ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : 'Create Plan'}
+      </Button>
+    </Card>
+  )
+}
+
 // ─── Instalment Modal ─────────────────────────────────────────────────────────
 function InstalmentModal({
   order, onClose, onSaved
@@ -1131,84 +1310,9 @@ export default function AdminDashboard() {
             <div className="space-y-6">
 
               {/* ── Create New Instalment Plan ── */}
-              <Card className="p-5">
-                <h3 className="font-bold text-base mb-1">Create Instalment Plan</h3>
-                <p className="text-xs text-muted-foreground mb-4">After agreeing terms with a student, create a plan here. The part-payment option will appear on their checkout automatically.</p>
-                <div className="grid sm:grid-cols-3 gap-3">
-                  <div className="relative">
-                    <label className="text-xs font-medium block mb-1">Student Email *</label>
-                    <Input
-                      placeholder="Type email to search..."
-                      value={planForm.user_email}
-                      onChange={e => { setPlanForm(f => ({...f, user_email: e.target.value})); setPlanError(''); setPlanSuccess('') }}
-                      autoComplete="off"
-                    />
-                    {planForm.user_email.length > 1 && (() => {
-                      const matches = planUsers.filter(u =>
-                        u.email.toLowerCase().includes(planForm.user_email.toLowerCase()) ||
-                        u.name.toLowerCase().includes(planForm.user_email.toLowerCase())
-                      ).slice(0, 6)
-                      return matches.length > 0 ? (
-                        <div className="absolute z-20 w-full mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
-                          {matches.map(u => (
-                            <button
-                              key={u.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b border-border last:border-0"
-                              onClick={() => { setPlanForm(f => ({...f, user_email: u.email})); setPlanError(''); setPlanSuccess('') }}
-                            >
-                              <span className="font-medium">{u.name}</span>
-                              <span className="text-muted-foreground ml-2 text-xs">{u.email}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : planUsers.length > 0 ? (
-                        <div className="absolute z-20 w-full mt-1 bg-background border border-border rounded-lg shadow-sm px-3 py-2 text-xs text-muted-foreground">
-                          No student found with that email
-                        </div>
-                      ) : null
-                    })()}
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium block mb-1">Course *</label>
-                    <select
-                      className="w-full h-9 px-3 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      value={planForm.course_id}
-                      onChange={e => { setPlanForm(f => ({...f, course_id: e.target.value})); setPlanError(''); setPlanSuccess('') }}
-                    >
-                      <option value="">Select course</option>
-                      {planCourses.map(c => <option key={c.id} value={c.id}>{c.title} — ₹{Number(c.price).toLocaleString('en-IN')}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium block mb-1">No. of Instalments *</label>
-                    <Input
-                      type="number" min={2} max={24}
-                      placeholder="e.g. 4"
-                      value={planForm.num_instalments}
-                      onChange={e => { setPlanForm(f => ({...f, num_instalments: e.target.value})); setPlanError(''); setPlanSuccess('') }}
-                    />
-                  </div>
-                </div>
-
-                {/* EMI Preview */}
-                {planForm.course_id && planForm.num_instalments && Number(planForm.num_instalments) >= 2 && (() => {
-                  const course = planCourses.find(c => c.id === planForm.course_id)
-                  const emi = course ? Math.round(course.price / Number(planForm.num_instalments) * 100) / 100 : 0
-                  return course ? (
-                    <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4 text-primary shrink-0" />
-                      <span><strong>{planForm.num_instalments} instalments</strong> of <strong>₹{emi.toLocaleString('en-IN')}</strong> each for <strong>{course.title}</strong> (Total: ₹{Number(course.price).toLocaleString('en-IN')})</span>
-                    </div>
-                  ) : null
-                })()}
-
-                {planError && <p className="text-xs text-red-500 mt-2 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{planError}</p>}
-                {planSuccess && <p className="text-xs text-green-600 mt-2 flex items-center gap-1"><CheckCircle className="w-3 h-3" />{planSuccess}</p>}
-
-                <Button
-                  className="mt-4"
-                  disabled={planLoading}
+              <CreateInstalmentPlanCard
+                onPlanCreated={(plan) => setPlanList(l => [plan, ...l])}
+              />
                   onClick={async () => {
                     setPlanError(''); setPlanSuccess('')
 
@@ -1273,10 +1377,7 @@ export default function AdminDashboard() {
                       setPlanLoading(false)
                     }
                   }}
-                >
-                  {planLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : <>Create Plan</>}
-                </Button>
-              </Card>
+
 
               {/* ── Existing Plans ── */}
               {planList.length > 0 && (

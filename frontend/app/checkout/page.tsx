@@ -122,7 +122,7 @@ function CheckoutForm() {
   }, [user, courseId])
 
   const subtotal    = course ? course.price : 0
-  const tax         = course ? +(course.price * 0.1).toFixed(2) : 0
+  const tax         = course ? +(course.price * 0.0).toFixed(2) : 0
   const baseTotal   = course ? +(subtotal + tax).toFixed(2) : 0
   const discountAmt = discount?.valid ? discount.discount_amount : 0
   const fullTotal   = Math.max(+(baseTotal - discountAmt).toFixed(2), 0)

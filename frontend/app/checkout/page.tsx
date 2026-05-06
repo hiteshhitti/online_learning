@@ -111,6 +111,16 @@ function CheckoutForm() {
     if (user) setForm(f => ({ ...f, name: f.name || user.name || '', email: f.email || user.email || '' }))
   }, [user])
 
+  // Check if admin has enabled part payment for this user+course
+  useEffect(() => {
+    if (!user?.id || !courseId) return
+    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    fetch(`${API}/admin/instalment-plans/check?user_id=${user.id}&course_id=${courseId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.enabled) setInstalmentPlan(data) })
+      .catch(() => {})
+  }, [user, courseId])
+
   const subtotal    = course ? course.price : 0
   const tax         = course ? +(course.price * 0.1).toFixed(2) : 0
   const baseTotal   = course ? +(subtotal + tax).toFixed(2) : 0

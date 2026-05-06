@@ -26,14 +26,10 @@ const CATEGORIES = [
 ]
 
 const COMPANIES = [
-  { name: 'Microsoft', logo: null, initials: 'MS' },
-  { name: 'Google', logo: null, initials: 'G' },
-  { name: 'Amazon', logo: null, initials: 'AWS' },
-  { name: 'IBM', logo: null, initials: 'IBM' },
-  { name: 'Infosys', logo: null, initials: 'INF' },
-  { name: 'TCS', logo: null, initials: 'TCS' },
-  { name: 'Wipro', logo: null, initials: 'WIP' },
-  { name: 'HCL', logo: null, initials: 'HCL' },
+  { name: 'Igxact', logo: null, initials: 'IG' },
+  { name: 'Pronota', logo: null, initials: 'P' },
+  { name: 'MeritHub', logo: null, initials: 'MH' },
+  { name: 'PixelCraft Infotech', logo: null, initials: 'PCI' },
 ]
 
 const FEATURES = [
@@ -270,7 +266,7 @@ export default function Home() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <p className="text-sm font-semibold text-purple-200 uppercase tracking-widest mb-1">Our Hiring Network</p>
-              <h3 className="text-2xl font-bold">3000+ Companies Hire Our Graduates</h3>
+              <h3 className="text-2xl font-bold">30+ Companies Hire Our Graduates</h3>
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
               {['Google', 'Amazon', 'Microsoft', 'Infosys', 'TCS', 'Wipro'].map(c => (

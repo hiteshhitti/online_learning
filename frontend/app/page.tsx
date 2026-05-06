@@ -23,14 +23,10 @@ const CATEGORIES = [
 ]
 
 const COMPANIES = [
-  { name: 'Microsoft', logo: null, initials: 'MS' },
-  { name: 'Google', logo: null, initials: 'G' },
-  { name: 'Amazon', logo: null, initials: 'AWS' },
-  { name: 'IBM', logo: null, initials: 'IBM' },
-  { name: 'Infosys', logo: null, initials: 'INF' },
-  { name: 'TCS', logo: null, initials: 'TCS' },
-  { name: 'Wipro', logo: null, initials: 'WIP' },
-  { name: 'HCL', logo: null, initials: 'HCL' },
+  { name: 'Igxact', logo: null, initials: 'MS' },
+  { name: 'Pronota', logo: null, initials: 'G' },
+  { name: 'Merithub', logo: null, initials: 'AWS' },
+  { name: 'Pixelcraft Infotech', logo: null, initials: 'IBM' },
 ]
 
 const FEATURES = [

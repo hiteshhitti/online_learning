@@ -504,8 +504,9 @@ def list_orders():
         cid = str(o.get("course_id", ""))
         u = users.get(uid, {})
         c = courses.get(cid, {})
-        amount     = float(o.get("amount", 0) or 0)
-        full_amount = float(o.get("full_amount", 0) or amount)
+        amount      = float(o.get("amount", 0) or 0)
+        course_price = float(c.get("price", 0) or 0)
+        full_amount  = float(o.get("full_amount") or 0) or course_price or amount
         result.append({
             "order_id":      o.get("id") or o.get("order_id", ""),
             "student_name":  u.get("name", "—"),

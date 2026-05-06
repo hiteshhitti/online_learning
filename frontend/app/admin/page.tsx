@@ -372,8 +372,8 @@ function EnrolmentsForInstalments({
             ...o,
             student_name:  o.student_name  || userMap[o.user_id]?.name  || o.user_id,
             student_email: o.student_email || userMap[o.user_id]?.email || '—',
-            full_amount:   Number(o.full_amount || o.amount || 0),
-            amount_paid:   Number(o.amount || 0),
+            full_amount:   Number(o.full_amount || o.course_price || 0),
+            amount_paid:   Number(o.amount_paid ?? o.amount ?? 0),
           }))
         setOrders(enriched)
       })

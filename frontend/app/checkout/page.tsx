@@ -477,7 +477,7 @@ function CheckoutForm() {
                       <span className="flex items-center gap-0.5"><IndianRupee className="w-3 h-3" />{subtotal.toLocaleString('en-IN')}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tax (10%)</span>
+                      <span className="text-muted-foreground">Tax (0%)</span>
                       <span className="flex items-center gap-0.5"><IndianRupee className="w-3 h-3" />{tax}</span>
                     </div>
                     {discountAmt > 0 && (

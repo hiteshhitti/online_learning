@@ -181,11 +181,7 @@ function CourseModal({ course, onClose, onSaved }: {
                 className="w-full px-3 py-2 pr-8 border border-border rounded-lg bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 appearance-none">
                 <option value="">— Select Category —</option>
                 {[
-                  'Web Development','Mobile Development','Data Science',
-                  'Machine Learning / AI','UI/UX Design','Graphic Design',
-                  'Digital Marketing','Business & Management','Finance & Accounting',
-                  'Photography & Video','Music','Health & Fitness',
-                  'Language Learning','Personal Development','Other',
+                  'AI & Machine Learning','Web Development','Mobile Development','Data Science','Cloud Computing','Cyber Security','UI/UX Design','Graphic Design','Digital Marketing','DevOps','Finance & Business','Personal Development','Other'
                 ].map(c => <option key={c} value={c}>{c}</option>)}
               </select>
               <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
@@ -1161,7 +1157,7 @@ export default function AdminDashboard() {
             </div>
             <div>
               <p className="font-bold text-sm">Admin Panel</p>
-              <p className="text-xs text-muted-foreground">Ultimate Institute</p>
+              <p className="text-xs text-muted-foreground">LearnHub</p>
             </div>
           </div>
         </div>

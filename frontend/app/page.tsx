@@ -12,21 +12,28 @@ const CATEGORIES = [
   'All',
   'AI & Machine Learning',
   'Web Development',
+  'Mobile Development',
   'Data Science',
   'Cloud Computing',
   'Cyber Security',
   'UI/UX Design',
-  'Mobile Development',
+  'Graphic Design',
+  'Digital Marketing',
   'DevOps',
   'Finance & Business',
-  'Digital Marketing',
+  'Personal Development',
+  'Other',
 ]
 
 const COMPANIES = [
-  { name: 'Igxact', logo: null, initials: 'MS' },
-  { name: 'Pronota', logo: null, initials: 'G' },
-  { name: 'Merithub', logo: null, initials: 'AWS' },
-  { name: 'Pixelcraft Infotech', logo: null, initials: 'IBM' },
+  { name: 'Microsoft', logo: null, initials: 'MS' },
+  { name: 'Google', logo: null, initials: 'G' },
+  { name: 'Amazon', logo: null, initials: 'AWS' },
+  { name: 'IBM', logo: null, initials: 'IBM' },
+  { name: 'Infosys', logo: null, initials: 'INF' },
+  { name: 'TCS', logo: null, initials: 'TCS' },
+  { name: 'Wipro', logo: null, initials: 'WIP' },
+  { name: 'HCL', logo: null, initials: 'HCL' },
 ]
 
 const FEATURES = [
@@ -263,10 +270,10 @@ export default function Home() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <p className="text-sm font-semibold text-purple-200 uppercase tracking-widest mb-1">Our Hiring Network</p>
-              <h3 className="text-2xl font-bold">30+ Companies Hire Our Graduates</h3>
+              <h3 className="text-2xl font-bold">3000+ Companies Hire Our Graduates</h3>
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
-              {['Igxact', 'Pronota', 'MeritHub', 'Pixelcraft Infotech'].map(c => (
+              {['Google', 'Amazon', 'Microsoft', 'Infosys', 'TCS', 'Wipro'].map(c => (
                 <span key={c} className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-sm font-medium backdrop-blur">
                   {c}
                 </span>

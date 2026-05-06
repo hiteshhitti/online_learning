@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { CourseCard } from '@/components/course-card'
 import { coursesApi, ApiCourse } from '@/lib/api'
 
-const categories = ['All', 'Web Development', 'Data Science', 'Design', 'Business', 'Mobile Development', 'Programming', 'Security', 'Mobile', 'DevOps']
+const categories = ['All', 'AI & Machine Learning', 'Web Development', 'Mobile Development', 'Data Science', 'Cloud Computing', 'Cyber Security', 'UI/UX Design', 'Graphic Design', 'Digital Marketing', 'DevOps', 'Finance & Business', 'Personal Development', 'Other']
 const levels = ['All Levels', 'Beginner', 'Intermediate', 'Advanced']
 
 export default function CoursesPage() {
@@ -31,7 +31,7 @@ export default function CoursesPage() {
     const matchesSearch =
       course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       course.description.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesCategory = selectedCategory === 'All' || course.category === selectedCategory
+    const matchesCategory = selectedCategory === 'All' || course.category?.toLowerCase() === selectedCategory.toLowerCase()
     const matchesLevel = selectedLevel === 'All Levels' || course.level === selectedLevel
     return matchesSearch && matchesCategory && matchesLevel
   })

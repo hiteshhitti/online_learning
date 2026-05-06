@@ -269,7 +269,7 @@ export default function Home() {
               <h3 className="text-2xl font-bold">30+ Companies Hire Our Graduates</h3>
             </div>
             <div className="flex flex-wrap gap-3 justify-center">
-              {['Google', 'Amazon', 'Microsoft', 'Infosys', 'TCS', 'Wipro'].map(c => (
+              {['Igxact', 'Pronota', 'MeritHub', 'PixelCraft Infotech'].map(c => (
                 <span key={c} className="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-sm font-medium backdrop-blur">
                   {c}
                 </span>

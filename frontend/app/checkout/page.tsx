@@ -487,16 +487,33 @@ function CheckoutForm() {
                       </div>
                     )}
                   </div>
-                  <div className="flex justify-between font-bold text-base pt-3">
-                    <span>{paymentType === 'part' ? 'Paying Now (1st instalment)' : 'Total'}</span>
-                    <span className="flex items-center gap-0.5 text-primary">
-                      <IndianRupee className="w-4 h-4" />{finalTotal.toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {paymentType === 'part' && instalmentPlan && (
-                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
-                      <span>Remaining ({instalmentPlan.num_instalments - 1} more instalments)</span>
-                      <span>₹{((instalmentPlan.num_instalments - 1) * instalmentPlan.emi_amount).toLocaleString('en-IN')}</span>
+                  {paymentType === 'part' && instalmentPlan ? (
+                    <div className="space-y-1.5 pt-3">
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Course Total</span>
+                        <span className="flex items-center gap-0.5"><IndianRupee className="w-3 h-3" />{fullTotal.toLocaleString('en-IN')}</span>
+                      </div>
+                      <div className="flex justify-between text-sm text-muted-foreground">
+                        <span>Plan</span>
+                        <span>{instalmentPlan.num_instalments} instalments</span>
+                      </div>
+                      <div className="flex justify-between font-bold text-base border-t border-border pt-2">
+                        <span>Paying Now (1st)</span>
+                        <span className="flex items-center gap-0.5 text-primary">
+                          <IndianRupee className="w-4 h-4" />{finalTotal.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-xs text-amber-600 dark:text-amber-400">
+                        <span>Pending after this ({instalmentPlan.num_instalments - 1} more)</span>
+                        <span>₹{((instalmentPlan.num_instalments - 1) * instalmentPlan.emi_amount).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between font-bold text-base pt-3">
+                      <span>Total</span>
+                      <span className="flex items-center gap-0.5 text-primary">
+                        <IndianRupee className="w-4 h-4" />{finalTotal.toLocaleString('en-IN')}
+                      </span>
                     </div>
                   )}
 

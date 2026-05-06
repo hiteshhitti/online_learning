@@ -223,6 +223,128 @@ function CourseModal({ course, onClose, onSaved }: {
 }
 
 
+
+// ─── Ledger Modal ─────────────────────────────────────────────────────────────
+function LedgerModal({ order, onClose, onPaymentAdded, onAddPayment }: {
+  order: any
+  onClose: () => void
+  onPaymentAdded: () => void
+  onAddPayment: (o: any) => void
+}) {
+  const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  const [history, setHistory] = useState<any[]>([])
+  const [totalPaid, setTotalPaid] = useState(0)
+  const [loading, setLoading] = useState(true)
+
+  const fullAmount = Number(order.full_amount || order.course_price || order.amount || 0)
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('adminToken') || ''
+    fetch(`${API}/orders/${order.order_id}/instalments`, {
+      headers: { 'X-Admin-Token': token }
+    })
+      .then(r => r.ok ? r.json() : { instalments: [], total_paid: 0 })
+      .then(d => {
+        setHistory(d.instalments || [])
+        setTotalPaid(d.total_paid || 0)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [order.order_id])
+
+  const pending = Math.max(fullAmount - totalPaid, 0)
+  const pct = fullAmount > 0 ? Math.min(Math.round((totalPaid / fullAmount) * 100), 100) : 0
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+      <Card className="w-full max-w-lg p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold">Payment Ledger</h2>
+            <p className="text-sm font-medium text-muted-foreground">{order.student_name}</p>
+            <p className="text-xs text-muted-foreground">{order.student_email}</p>
+            <p className="text-xs text-muted-foreground mt-0.5 truncate max-w-xs">{order.course_title}</p>
+          </div>
+          <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
+        </div>
+
+        {/* Progress */}
+        <div className="p-4 rounded-lg bg-muted/40 border border-border space-y-2">
+          <div className="flex justify-between text-sm font-medium">
+            <span>Total Paid</span>
+            <span className="text-primary">₹{totalPaid.toLocaleString('en-IN')} / ₹{fullAmount.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="w-full bg-background rounded-full h-2 border border-border">
+            <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{pct}% paid</span>
+            {pending > 0
+              ? <span className="text-amber-600 dark:text-amber-400 font-medium">₹{pending.toLocaleString('en-IN')} pending</span>
+              : <span className="text-green-600 font-medium">✅ Fully paid</span>
+            }
+          </div>
+        </div>
+
+        {/* Payment history */}
+        <div>
+          <p className="text-sm font-semibold mb-2">Payment History</p>
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+          ) : history.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">No payments recorded yet</p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    {['#', 'Amount', 'Reference', 'Note', 'Date'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {history.map((h, i) => (
+                    <tr key={i} className="hover:bg-muted/30">
+                      <td className="px-3 py-2 text-muted-foreground">{i + 1}</td>
+                      <td className="px-3 py-2 font-semibold text-primary">₹{Number(h.amount).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{h.reference || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{h.note || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
+                        {h.created_at ? new Date(h.created_at).toLocaleDateString('en-IN') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-3 pt-1 border-t border-border">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Close</Button>
+          {pending > 0 && order.status !== 'active' && (
+            <Button className="flex-1" onClick={() => {
+              onClose()
+              onAddPayment({
+                order_id: order.order_id,
+                user_id: order.user_id,
+                course_id: order.course_id,
+                course_title: order.course_title,
+                amount_paid: totalPaid,
+              })
+            }}>
+              + Add Payment
+            </Button>
+          )}
+        </div>
+      </Card>
+    </div>
+  )
+}
+
 // ─── Enrolments For Instalments ──────────────────────────────────────────────
 function EnrolmentsForInstalments({
   onAddPayment
@@ -233,11 +355,11 @@ function EnrolmentsForInstalments({
   const [orders, setOrders] = useState<any[]>([])
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(true)
+  const [ledgerOrder, setLedgerOrder] = useState<any | null>(null)
 
-  useEffect(() => {
+  const loadOrders = () => {
     const token = sessionStorage.getItem('adminToken') || ''
     const headers = { 'X-Admin-Token': token }
-    // Fetch orders AND users sheet so we show all part-payment orders with real names
     Promise.all([
       fetch(`${API}/admin/orders`, { headers }).then(r => r.ok ? r.json() : []),
       fetch(`${API}/admin/users`, { headers }).then(r => r.ok ? r.json() : []),
@@ -245,16 +367,22 @@ function EnrolmentsForInstalments({
       .then(([ordersData, usersData]) => {
         const userMap: Record<string, {name: string; email: string}> = {}
         for (const u of usersData) userMap[u.id] = { name: u.name, email: u.email }
-        const enriched = (Array.isArray(ordersData) ? ordersData : []).map((o: any) => ({
-          ...o,
-          student_name:  o.student_name  || userMap[o.user_id]?.name  || o.user_id,
-          student_email: o.student_email || userMap[o.user_id]?.email || '—',
-        }))
+        const enriched = (Array.isArray(ordersData) ? ordersData : [])
+          .filter((o: any) => o.payment_type === 'part' || o.status === 'pending')
+          .map((o: any) => ({
+            ...o,
+            student_name:  o.student_name  || userMap[o.user_id]?.name  || o.user_id,
+            student_email: o.student_email || userMap[o.user_id]?.email || '—',
+            full_amount:   Number(o.full_amount || o.amount || 0),
+            amount_paid:   Number(o.amount || 0),
+          }))
         setOrders(enriched)
       })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadOrders() }, [])
 
   const filtered = orders.filter(o =>
     !search ||

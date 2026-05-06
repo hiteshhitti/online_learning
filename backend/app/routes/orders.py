@@ -127,33 +127,45 @@ def create_order(order: OrderCreate):
     if order.discount_code:
         try:
             code = order.discount_code.strip().upper()
-            discounts = get_sheet("discounts").get_all_records()
-            matched_discount = next(
-                (d for d in discounts if str(d.get("code", "")).upper() == code), None
+
+            # Check members sheet directly for matching coupon code
+            members = get_sheet("members").get_all_records()
+            member = next(
+                (m for m in members
+                 if str(m.get("coupon_code", "")).upper() == code),
+                None,
             )
-            if matched_discount and matched_discount.get("member_id"):
-                members = get_sheet("members").get_all_records()
-                member = next(
-                    (m for m in members
-                     if str(m.get("id")) == str(matched_discount["member_id"])),
-                    None,
+
+            # Also check discounts sheet for member_id link (legacy support)
+            if not member:
+                discounts = get_sheet("discounts").get_all_records()
+                matched_discount = next(
+                    (d for d in discounts if str(d.get("code", "")).upper() == code), None
                 )
-                if member and str(member.get("active", "true")).lower() == "true":
-                    rate = float(member.get("commission_rate", 0) or 0)
-                    earned = round(order.amount * rate / 100, 2)
-                    get_sheet("member_referrals").append_row([
-                        str(uuid.uuid4()),
-                        str(member["id"]),
-                        order_id,
-                        order.user_id,
-                        order.course_id,
-                        code,
-                        order.amount,
-                        rate,
-                        earned,
-                        "pending",
-                        str(datetime.now()),
-                    ])
+                if matched_discount and matched_discount.get("member_id"):
+                    member = next(
+                        (m for m in members
+                         if str(m.get("id")) == str(matched_discount["member_id"])),
+                        None,
+                    )
+
+            if member and str(member.get("active", "true")).lower() == "true":
+                rate   = float(member.get("commission_rate", 0) or 0)
+                earned = round(order.amount * rate / 100, 2)
+                get_sheet("member_referrals").append_row([
+                    str(uuid.uuid4()),      # id
+                    str(member["id"]),      # member_id
+                    order_id,               # order_id
+                    order.user_id,          # student_id
+                    order.course_id,        # course_id
+                    code,                   # coupon_code
+                    order.amount,           # order_amount
+                    rate,                   # commission_rate
+                    earned,                 # commission_earned
+                    "pending",              # payout_status
+                    str(datetime.now()),    # created_at
+                ])
+                print(f"Commission recorded: ₹{earned} for member {member.get('name')}")
         except Exception as e:
             print(f"Commission recording error: {e}")
     # ── End referral hook ─────────────────────────────────────────────────────

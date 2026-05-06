@@ -13,7 +13,8 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "https://online-learning-tau.vercel.app",
-        "https://ultimateinstitute.co.in/",
+        "https://ultimateinstitute.co.in",
+        "https://www.ultimateinstitute.co.in",
     ],
     allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,

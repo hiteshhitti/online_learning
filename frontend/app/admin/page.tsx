@@ -11,13 +11,13 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import {
-  adminApi, AdminStats, AdminCourse, AdminEnrollment,
+  adminApi, adminMemberApi, AdminStats, AdminCourse, AdminEnrollment,
   AdminDiscount, AdminEnquiry, adminBatchApi, ApiBatch,
 } from '@/lib/api'
 import { toast } from 'sonner'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'courses' | 'enrollments' | 'enquiries' | 'discounts' | 'batches' | 'instalments'
+type Tab = 'overview' | 'courses' | 'enrollments' | 'enquiries' | 'discounts' | 'batches' | 'instalments' | 'members'
 
 const BLANK_COURSE: Omit<AdminCourse, 'id'> = {
   title: '', description: '', price: 0, category: '',
@@ -219,6 +219,355 @@ function CourseModal({ course, onClose, onSaved }: {
 }
 
 
+
+
+// ─── Members Tab ──────────────────────────────────────────────────────────────
+function MembersTab({ members, onRefresh }: { members: any[]; onRefresh: () => void }) {
+  const [showCreate, setShowCreate] = useState(false)
+  const [selected, setSelected]     = useState<any | null>(null)
+  const [search, setSearch]         = useState('')
+
+  const filtered = members.filter(m =>
+    !search ||
+    m.name?.toLowerCase().includes(search.toLowerCase()) ||
+    m.email?.toLowerCase().includes(search.toLowerCase()) ||
+    m.coupon_code?.toLowerCase().includes(search.toLowerCase())
+  )
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-base font-bold">Referral Members</h2>
+          <p className="text-xs text-muted-foreground">Create accounts for people who refer students to your courses</p>
+        </div>
+        <Button onClick={() => setShowCreate(true)} size="sm">
+          <Plus className="w-4 h-4 mr-1" /> Create Member
+        </Button>
+      </div>
+
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} className="pl-9" placeholder="Search by name, email or coupon code..." />
+      </div>
+
+      {/* Members list */}
+      {filtered.length === 0 ? (
+        <Card className="p-12 text-center border-dashed">
+          <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-40" />
+          <p className="text-muted-foreground text-sm">No members yet. Create one to get started.</p>
+        </Card>
+      ) : (
+        <div className="overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted">
+              <tr>
+                {['Name', 'Email', 'Coupon Code', 'Commission', 'Status', 'Joined', ''].map(h => (
+                  <th key={h} className="text-left px-4 py-3 font-medium text-muted-foreground whitespace-nowrap">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {filtered.map((m, i) => (
+                <tr key={i} className="hover:bg-muted/40">
+                  <td className="px-4 py-3 font-medium">{m.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs">{m.email}</td>
+                  <td className="px-4 py-3">
+                    <code className="bg-muted px-2 py-0.5 rounded text-xs font-mono">{m.coupon_code}</code>
+                  </td>
+                  <td className="px-4 py-3">{m.commission_rate}%</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                      String(m.active) === 'true'
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                        : 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
+                    }`}>{String(m.active) === 'true' ? 'Active' : 'Inactive'}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {m.created_at ? new Date(m.created_at).toLocaleDateString('en-IN') : '—'}
+                  </td>
+                  <td className="px-4 py-3">
+                    <Button size="sm" variant="outline" onClick={() => setSelected(m)}>
+                      View & Payout
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Create Member Modal */}
+      {showCreate && (
+        <CreateMemberModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => { setShowCreate(false); onRefresh() }}
+        />
+      )}
+
+      {/* Member Detail Modal */}
+      {selected && (
+        <MemberDetailModal
+          member={selected}
+          onClose={() => setSelected(null)}
+          onUpdated={() => { setSelected(null); onRefresh() }}
+        />
+      )}
+    </div>
+  )
+}
+
+// ─── Create Member Modal ──────────────────────────────────────────────────────
+function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({ name: '', email: '', password: '', coupon_code: '', commission_rate: '10' })
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  // Auto-generate coupon code from name
+  const generateCode = (name: string) =>
+    name.trim().toUpperCase().replace(/\s+/g, '').slice(0, 8) + Math.floor(Math.random() * 100)
+
+  const handleCreate = async () => {
+    setError('')
+    if (!form.name || !form.email || !form.password) { setError('Name, email and password are required'); return }
+    if (!form.coupon_code) { setError('Coupon code is required'); return }
+    setLoading(true)
+    try {
+      await adminMemberApi.create({
+        name: form.name,
+        email: form.email,
+        password: form.password,
+        coupon_code: form.coupon_code.toUpperCase(),
+        commission_rate: Number(form.commission_rate),
+      })
+      toast.success('Member created! Share their login credentials.')
+      onCreated()
+    } catch (e: any) {
+      setError(e?.message || 'Failed to create member')
+    } finally { setLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+      <Card className="w-full max-w-md p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold">Create Member</h2>
+          <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs font-medium block mb-1">Full Name *</label>
+            <Input value={form.name} onChange={e => {
+              const name = e.target.value
+              setForm(f => ({ ...f, name, coupon_code: f.coupon_code || generateCode(name) }))
+            }} placeholder="e.g. Rajiv Mehra" />
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1">Email *</label>
+            <Input type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="member@email.com" />
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1">Password *</label>
+            <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Set a login password" />
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1">Coupon Code *</label>
+            <div className="flex gap-2">
+              <Input
+                value={form.coupon_code}
+                onChange={e => setForm(f => ({ ...f, coupon_code: e.target.value.toUpperCase() }))}
+                placeholder="e.g. RAJIV10"
+                className="font-mono"
+              />
+              <Button variant="outline" size="sm" onClick={() => setForm(f => ({ ...f, coupon_code: generateCode(f.name || 'MEMBER') }))}>
+                Generate
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Students use this code at checkout to give this member commission</p>
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1">Commission Rate (%) *</label>
+            <Input type="number" min={1} max={50} value={form.commission_rate} onChange={e => setForm(f => ({ ...f, commission_rate: e.target.value }))} />
+            <p className="text-xs text-muted-foreground mt-1">e.g. 10 means member earns 10% of each referred sale</p>
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}
+
+        <div className="flex gap-3 pt-1">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button className="flex-1" onClick={handleCreate} disabled={loading}>
+            {loading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Creating...</> : 'Create Member'}
+          </Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+// ─── Member Detail Modal ──────────────────────────────────────────────────────
+function MemberDetailModal({ member, onClose, onUpdated }: { member: any; onClose: () => void; onUpdated: () => void }) {
+  const [referrals, setReferrals] = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [payoutLoading, setPayoutLoading] = useState(false)
+  const [payoutForm, setPayoutForm] = useState({ amount: '', method: 'Bank Transfer', notes: '' })
+  const [showPayout, setShowPayout] = useState(false)
+
+  const pendingAmount = referrals
+    .filter(r => r.payout_status === 'pending')
+    .reduce((sum, r) => sum + Number(r.commission_earned || 0), 0)
+
+  const totalEarned = referrals
+    .reduce((sum, r) => sum + Number(r.commission_earned || 0), 0)
+
+  useEffect(() => {
+    adminMemberApi.getReferrals(String(member.id))
+      .then(data => setReferrals(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [member.id])
+
+  const handlePayout = async () => {
+    if (!payoutForm.amount || Number(payoutForm.amount) <= 0) { toast.error('Enter valid amount'); return }
+    setPayoutLoading(true)
+    try {
+      await adminMemberApi.payout(String(member.id), {
+        amount: Number(payoutForm.amount),
+        payment_method: payoutForm.method,
+        notes: payoutForm.notes,
+      })
+      toast.success(`Payout of ₹${payoutForm.amount} recorded!`)
+      setShowPayout(false)
+      setPayoutForm({ amount: '', method: 'Bank Transfer', notes: '' })
+      // Refresh referrals
+      const data = await adminMemberApi.getReferrals(String(member.id))
+      setReferrals(Array.isArray(data) ? data : [])
+      onUpdated()
+    } catch { toast.error('Failed to record payout') }
+    finally { setPayoutLoading(false) }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8 overflow-y-auto">
+      <Card className="w-full max-w-2xl p-6 space-y-5">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-bold">{member.name}</h2>
+            <p className="text-xs text-muted-foreground">{member.email}</p>
+            <code className="text-xs bg-muted px-2 py-0.5 rounded font-mono mt-1 inline-block">{member.coupon_code}</code>
+            <span className="text-xs text-muted-foreground ml-2">{member.commission_rate}% commission</span>
+          </div>
+          <button onClick={onClose}><X className="w-5 h-5 text-muted-foreground" /></button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-3">
+          <div className="p-3 rounded-lg bg-muted/40 border border-border text-center">
+            <p className="text-xs text-muted-foreground">Total Referrals</p>
+            <p className="text-xl font-bold mt-1">{referrals.length}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-muted/40 border border-border text-center">
+            <p className="text-xs text-muted-foreground">Total Earned</p>
+            <p className="text-xl font-bold mt-1 text-primary">₹{totalEarned.toLocaleString('en-IN')}</p>
+          </div>
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-center">
+            <p className="text-xs text-amber-600 dark:text-amber-400">Pending Payout</p>
+            <p className="text-xl font-bold mt-1 text-amber-700 dark:text-amber-300">₹{pendingAmount.toLocaleString('en-IN')}</p>
+          </div>
+        </div>
+
+        {/* Payout button */}
+        {pendingAmount > 0 && (
+          <div>
+            {!showPayout ? (
+              <Button onClick={() => { setShowPayout(true); setPayoutForm(f => ({ ...f, amount: String(pendingAmount) })) }}>
+                Process Payout — ₹{pendingAmount.toLocaleString('en-IN')}
+              </Button>
+            ) : (
+              <div className="p-4 rounded-lg border border-border space-y-3">
+                <p className="text-sm font-semibold">Record Payout</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Amount (₹)</label>
+                    <Input type="number" value={payoutForm.amount} onChange={e => setPayoutForm(f => ({ ...f, amount: e.target.value }))} />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium block mb-1">Payment Method</label>
+                    <select className="w-full h-9 px-3 border border-border rounded-lg bg-background text-sm"
+                      value={payoutForm.method} onChange={e => setPayoutForm(f => ({ ...f, method: e.target.value }))}>
+                      {['Bank Transfer', 'UPI', 'Cash', 'Cheque'].map(m => <option key={m}>{m}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium block mb-1">Notes (optional)</label>
+                  <Input value={payoutForm.notes} onChange={e => setPayoutForm(f => ({ ...f, notes: e.target.value }))} placeholder="e.g. UTR number, reference" />
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={() => setShowPayout(false)}>Cancel</Button>
+                  <Button size="sm" onClick={handlePayout} disabled={payoutLoading}>
+                    {payoutLoading ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Processing...</> : 'Confirm Payout'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Referrals table */}
+        <div>
+          <p className="text-sm font-semibold mb-3">Referral History</p>
+          {loading ? (
+            <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+          ) : referrals.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-6">No referrals yet</p>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    {['Student', 'Course', 'Sale Amount', 'Commission', 'Status', 'Date'].map(h => (
+                      <th key={h} className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {referrals.map((r, i) => (
+                    <tr key={i} className="hover:bg-muted/30">
+                      <td className="px-3 py-2">{r.student_name || '—'}</td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground max-w-[140px] truncate">{r.course_title || r.course_id}</td>
+                      <td className="px-3 py-2">₹{Number(r.order_amount || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-2 font-semibold text-primary">₹{Number(r.commission_earned || 0).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-2">
+                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                          r.payout_status === 'paid'
+                            ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
+                            : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                        }`}>{r.payout_status || 'pending'}</span>
+                      </td>
+                      <td className="px-3 py-2 text-xs text-muted-foreground">
+                        {r.created_at ? new Date(r.created_at).toLocaleDateString('en-IN') : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="pt-1 border-t border-border">
+          <Button variant="outline" onClick={onClose}>Close</Button>
+        </div>
+      </Card>
+    </div>
+  )
+}
 
 // ─── Ledger Modal ─────────────────────────────────────────────────────────────
 function LedgerModal({ order, onClose, onPaymentAdded, onAddPayment }: {
@@ -978,6 +1327,10 @@ export default function AdminDashboard() {
   const [editCourse, setEditCourse]       = useState<AdminCourse | null | undefined>(undefined)
   const [instalments, setInstalments]     = useState<Record<string, {amount: number; reference: string; note: string; created_at: string}[]>>({})
   const [instalmentOrder, setInstalmentOrder] = useState<{order_id: string; user_id: string; course_id: string; course_title: string; amount_paid: number} | null>(null)
+  const [members, setMembers]             = useState<any[]>([])
+  const [memberReferrals, setMemberReferrals] = useState<any[]>([])
+  const [selectedMember, setSelectedMember]   = useState<any | null>(null)
+  const [showCreateMember, setShowCreateMember] = useState(false)
   const [planForm, setPlanForm] = useState({ user_email: '', course_id: '', num_instalments: '' })
   const [planUsers, setPlanUsers] = useState<{id: string; name: string; email: string}[]>([])
   const [planCourses, setPlanCourses] = useState<{id: string; title: string; price: number}[]>([])
@@ -1007,6 +1360,11 @@ export default function AdminDashboard() {
         setStats(await adminApi.stats())
       } else if (tab === 'courses') {
         setCourses(await adminApi.getCourses())
+      } else if (tab === 'members') {
+        try {
+          const data = await adminMemberApi.list()
+          setMembers(Array.isArray(data) ? data : [])
+        } catch {}
       } else if (tab === 'instalments') {
         // Use adminApi which has correct auth headers built in
         try {
@@ -1128,6 +1486,7 @@ export default function AdminDashboard() {
     { id: 'batches'      as Tab, label: 'Batches',      icon: CalendarDays },
     { id: 'enrollments'  as Tab, label: 'Enrollments',  icon: Users },
     { id: 'instalments'  as Tab, label: 'Instalments',  icon: Tag },
+    { id: 'members'      as Tab, label: 'Members',      icon: Users },
     { id: 'enquiries'    as Tab, label: 'Enquiries',    icon: MessageSquare },
     { id: 'discounts'    as Tab, label: 'Discounts',    icon: Tag },
   ]
@@ -1562,6 +1921,17 @@ export default function AdminDashboard() {
               order={instalmentOrder}
               onClose={() => setInstalmentOrder(null)}
               onSaved={() => setInstalmentOrder(null)}
+            />
+          )}
+
+          {/* ── Members ── */}
+          {!loading && activeTab === 'members' && (
+            <MembersTab
+              members={members}
+              onRefresh={async () => {
+                const data = await adminMemberApi.list()
+                setMembers(Array.isArray(data) ? data : [])
+              }}
             />
           )}
 

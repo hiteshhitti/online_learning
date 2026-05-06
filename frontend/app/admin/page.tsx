@@ -362,8 +362,9 @@ function CreateInstalmentPlanCard({ onPlanCreated }: { onPlanCreated: (plan: any
     : []
 
   const selectedCourse = courses.find(c => c.id === courseId)
-  const emi = selectedCourse && numInst && Number(numInst) >= 2
-    ? Math.round(selectedCourse.price / Number(numInst) * 100) / 100
+  const parsedNumInst = parseInt(numInst, 10)
+  const emi = selectedCourse && !isNaN(parsedNumInst) && parsedNumInst >= 2 && selectedCourse.price > 0
+    ? Math.round((selectedCourse.price / parsedNumInst) * 100) / 100
     : null
 
   const handleCreate = async () => {
@@ -460,7 +461,7 @@ function CreateInstalmentPlanCard({ onPlanCreated }: { onPlanCreated: (plan: any
             <option value="">{courses.length === 0 ? 'Loading...' : 'Select course'}</option>
             {courses.map(c => (
               <option key={c.id} value={c.id}>
-                {c.title} — ₹{c.price.toLocaleString('en-IN')}
+                {c.title} — ₹{(c.price ?? 0).toLocaleString('en-IN')}
               </option>
             ))}
           </select>
@@ -483,9 +484,9 @@ function CreateInstalmentPlanCard({ onPlanCreated }: { onPlanCreated: (plan: any
         <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20 text-sm flex items-center gap-2">
           <CheckCircle className="w-4 h-4 text-primary shrink-0" />
           <span>
-            <strong>{numInst} instalments</strong> of <strong>₹{emi.toLocaleString('en-IN')}</strong> each
+            <strong>{parsedNumInst} instalments</strong> of <strong>₹{(emi ?? 0).toLocaleString('en-IN')}</strong> each
             for <strong>{selectedCourse.title}</strong>
-            <span className="text-muted-foreground ml-1">(Total: ₹{selectedCourse.price.toLocaleString('en-IN')})</span>
+            <span className="text-muted-foreground ml-1">(Total: ₹{(selectedCourse.price ?? 0).toLocaleString('en-IN')})</span>
           </span>
         </div>
       )}

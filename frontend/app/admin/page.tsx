@@ -3,9 +3,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   LayoutDashboard, BookOpen, Users, MessageSquare, Tag, LogOut,
-  Plus, Pencil, Trash2, Eye, EyeOff, Loader2, X, Check, Search,
+  Plus, Pencil, Trash2, Eye, EyeOff, Loader2, X, Check, CheckCircle, Search,
   ChevronDown, RefreshCw, Copy, ToggleLeft, ToggleRight, AlertCircle,
-  CalendarDays, Wifi, MapPin, Monitor,
+  CalendarDays, Wifi, MapPin, Monitor, Briefcase,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'

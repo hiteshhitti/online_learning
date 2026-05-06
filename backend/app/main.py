@@ -7,27 +7,22 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(title="LearnHub API", version="1.0.0")
 
-
-
-
-
+# ── CORS must come BEFORE any mounts ─────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
         "https://online-learning-tau.vercel.app",
     ],
-    allow_origin_regex=r"https://.*\.vercel\.app",  # covers preview deployments
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-# ── Uploads folder ────────────────────────────────────────────────────────────
+# ── Uploads folder (AFTER middleware) ─────────────────────────────────────────
 UPLOADS_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
-
 
 # ── Image upload endpoint ─────────────────────────────────────────────────────
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
@@ -64,7 +59,7 @@ async def upload_image(
         f.write(contents)
 
     BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
-    return {"url": f"{BASE_URL}/uploads/{filename}"}  # ✅
+    return {"url": f"{BASE_URL}/uploads/{filename}"}
 
 app.include_router(users.router,     prefix="/users",     tags=["Users"])
 app.include_router(courses.router,   prefix="/courses",   tags=["Courses"])
@@ -73,4 +68,4 @@ app.include_router(dashboard.router, prefix="/dashboard", tags=["Dashboard"])
 app.include_router(enquiry.router,   prefix="/enquiry",   tags=["Enquiry"])
 app.include_router(admin.router,     prefix="/admin",     tags=["Admin"])
 app.include_router(members.router,   prefix="/members",   tags=["Members"])
-app.include_router(batches.router,   prefix="/batches",   tags=["Batches"])   # ← new
+app.include_router(batches.router,   prefix="/batches",   tags=["Batches"])

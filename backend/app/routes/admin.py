@@ -488,23 +488,39 @@ def list_orders():
     users   = {str(u["id"]): u for u in get_sheet("users").get_all_records()}
     courses = {str(c["id"]): c for c in get_sheet("courses").get_all_records()}
 
+    # Build instalment totals per order
+    try:
+        instalments = get_sheet("instalments").get_all_records()
+        inst_totals: dict = {}
+        for inst in instalments:
+            oid = str(inst.get("order_id", ""))
+            inst_totals[oid] = inst_totals.get(oid, 0) + float(inst.get("amount", 0) or 0)
+    except:
+        inst_totals = {}
+
     result = []
     for o in orders:
         uid = str(o.get("user_id", ""))
         cid = str(o.get("course_id", ""))
         u = users.get(uid, {})
         c = courses.get(cid, {})
+        amount     = float(o.get("amount", 0) or 0)
+        full_amount = float(o.get("full_amount", 0) or amount)
         result.append({
             "order_id":      o.get("id") or o.get("order_id", ""),
             "student_name":  u.get("name", "—"),
             "student_email": u.get("email", "—"),
             "course_title":  c.get("title", "—"),
+            "course_price":  float(c.get("price", 0) or 0),
             "batch_id":      o.get("batch_id", ""),
-            "amount":        o.get("amount", 0),
+            "amount":        amount,
+            "full_amount":   full_amount,
+            "amount_paid":   inst_totals.get(str(o.get("id") or o.get("order_id", "")), amount),
+            "payment_type":  o.get("payment_type", "full"),
             "discount_code": o.get("discount_code", ""),
             "status":        o.get("status", "pending"),
             "reference":     o.get("reference", ""),
-            "created_at":    o.get("created_at", ""),
+            "created_at":    o.get("created_at", "") or o.get("created_id", ""),
             "user_id":       uid,
             "course_id":     cid,
         })

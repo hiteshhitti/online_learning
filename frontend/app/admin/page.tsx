@@ -240,7 +240,7 @@ function LedgerModal({ order, onClose, onPaymentAdded, onAddPayment }: {
 
   useEffect(() => {
     const token = sessionStorage.getItem('adminToken') || ''
-    fetch(`${API}/orders/${order.order_id}/instalments`, {
+    fetch(`${API}/admin/orders/${order.order_id}/instalments`, {
       headers: { 'X-Admin-Token': token }
     })
       .then(r => r.ok ? r.json() : { instalments: [], total_paid: 0 })
@@ -368,7 +368,6 @@ function EnrolmentsForInstalments({
         const userMap: Record<string, {name: string; email: string}> = {}
         for (const u of usersData) userMap[u.id] = { name: u.name, email: u.email }
         const enriched = (Array.isArray(ordersData) ? ordersData : [])
-          .filter((o: any) => o.payment_type === 'part' || o.status === 'pending')
           .map((o: any) => ({
             ...o,
             student_name:  o.student_name  || userMap[o.user_id]?.name  || o.user_id,
@@ -643,7 +642,10 @@ function InstalmentModal({
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/orders/${order.order_id}/instalments`)
+    const token = sessionStorage.getItem('adminToken') || ''
+    fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/orders/${order.order_id}/instalments`, {
+      headers: { 'X-Admin-Token': token }
+    })
       .then(r => r.json())
       .then(d => { setHistory(d.instalments || []); setTotalPaid(d.total_paid || 0) })
       .catch(() => {})
@@ -655,9 +657,10 @@ function InstalmentModal({
     }
     setLoading(true)
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/orders/${order.order_id}/instalments`, {
+      const token = sessionStorage.getItem('adminToken') || ''
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/admin/orders/${order.order_id}/instalments`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Admin-Token': token },
         body: JSON.stringify({ user_id: order.user_id, course_id: order.course_id, amount: +form.amount, reference: form.reference, note: form.note })
       })
       const data = await res.json()

@@ -82,33 +82,35 @@ export default function MemberDashboardPage() {
             <Loader2 className="w-4 h-4 animate-spin" />Loading stats...
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard icon={<Users className="w-4 h-4"/>}      label="Student referrals"  value={stats?.total_referrals ?? 0} />
-            <StatCard icon={<TrendingUp className="w-4 h-4"/>} label="Total earned"        value={`₹${stats?.total_earned?.toLocaleString('en-IN') ?? 0}`} />
-            <StatCard icon={<Clock className="w-4 h-4"/>}      label="Pending payout"      value={`₹${stats?.pending_payout?.toLocaleString('en-IN') ?? 0}`} warn />
-            <StatCard icon={<CheckCircle2 className="w-4 h-4"/>} label="Paid out"          value={`₹${stats?.paid_out?.toLocaleString('en-IN') ?? 0}`} success />
-          </div>
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard icon={<Users className="w-4 h-4"/>}      label="Student referrals"  value={stats?.total_referrals ?? 0} />
+              <StatCard icon={<TrendingUp className="w-4 h-4"/>} label="Total earned"        value={`₹${stats?.total_earned?.toLocaleString('en-IN') ?? 0}`} />
+              <StatCard icon={<Clock className="w-4 h-4"/>}      label="Pending payout"      value={`₹${stats?.pending_payout?.toLocaleString('en-IN') ?? 0}`} warn />
+              <StatCard icon={<CheckCircle2 className="w-4 h-4"/>} label="Paid out"          value={`₹${stats?.paid_out?.toLocaleString('en-IN') ?? 0}`} success />
+            </div>
 
-          {/* 2-tier stats row */}
-          <div className="grid grid-cols-2 gap-4">
-            <StatCard
-              icon={<Star className="w-4 h-4"/>}
-              label="Members you recruited"
-              value={stats?.sub_members_count ?? 0}
-              info
-            />
-            <StatCard
-              icon={<TrendingUp className="w-4 h-4"/>}
-              label="Bonus earned (5% tier)"
-              value={`₹${stats?.bonus_earned?.toLocaleString('en-IN') ?? 0}`}
-              info
-            />
-          </div>
-          {(stats?.sub_members_count ?? 0) === 0 && (
-            <p className="text-xs text-muted-foreground -mt-4">
-              💡 Refer other members using your referral link — you earn <strong>5% bonus</strong> every time their students enroll.
-            </p>
-          )}
+            {/* 2-tier stats row */}
+            <div className="grid grid-cols-2 gap-4">
+              <StatCard
+                icon={<Star className="w-4 h-4"/>}
+                label="Members you recruited"
+                value={stats?.sub_members_count ?? 0}
+                info
+              />
+              <StatCard
+                icon={<TrendingUp className="w-4 h-4"/>}
+                label="Bonus earned"
+                value={`₹${stats?.bonus_earned?.toLocaleString('en-IN') ?? 0}`}
+                info
+              />
+            </div>
+            {(stats?.sub_members_count ?? 0) === 0 && (
+              <p className="text-xs text-muted-foreground -mt-4">
+                💡 Refer other members using your referral link — you earn bonus commission every time their students enroll.
+              </p>
+            )}
+          </>
         )}
 
         {/* Referral table */}

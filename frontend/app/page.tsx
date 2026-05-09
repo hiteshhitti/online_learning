@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, CheckCircle, PlayCircle, Award, Zap, Loader2, Users, BookOpen, Star, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -51,9 +51,10 @@ export default function Home() {
       .finally(() => setLoadingCourses(false))
   }, [])
 
+  const shuffled = useMemo(() => [...allCourses].sort(() => Math.random() - 0.5), [allCourses.length])
   const filteredCourses = activeCategory === 'All'
-    ? allCourses.slice(0, 6)
-    : allCourses.filter(c => c.category?.toLowerCase() === activeCategory.toLowerCase()).slice(0, 6)
+    ? shuffled.slice(0, 6)
+    : shuffled.filter(c => c.category?.toLowerCase() === activeCategory.toLowerCase()).slice(0, 6)
 
   return (
     <main className="min-h-screen bg-background font-sans">

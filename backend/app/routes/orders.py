@@ -123,49 +123,104 @@ def create_order(order: OrderCreate):
     # After you verify the student's UPI payment (WhatsApp screenshot),
     # use PATCH /admin/orders/{order_id}/activate to enroll them.
 
-    # ── Referral commission hook ───────────────────────────────────────────────
+    # ── Referral commission hook (2-tier) ────────────────────────────────────
     if order.discount_code:
         try:
             code = order.discount_code.strip().upper()
 
-            # Check members sheet directly for matching coupon code
+            # Find the child member who owns this coupon code
             members = get_sheet("members").get_all_records()
-            member = next(
-                (m for m in members
-                 if str(m.get("coupon_code", "")).upper() == code),
+            child_member = next(
+                (m for m in members if str(m.get("coupon_code", "")).upper() == code),
                 None,
             )
 
-            # Also check discounts sheet for member_id link (legacy support)
-            if not member:
+            # Legacy: also check discounts sheet for member_id link
+            if not child_member:
                 discounts = get_sheet("discounts").get_all_records()
                 matched_discount = next(
                     (d for d in discounts if str(d.get("code", "")).upper() == code), None
                 )
                 if matched_discount and matched_discount.get("member_id"):
-                    member = next(
+                    child_member = next(
                         (m for m in members
                          if str(m.get("id")) == str(matched_discount["member_id"])),
                         None,
                     )
 
-            if member and str(member.get("active", "true")).lower() == "true":
-                rate   = float(member.get("commission_rate", 0) or 0)
-                earned = round(order.amount * rate / 100, 2)
-                get_sheet("member_referrals").append_row([
-                    str(uuid.uuid4()),      # id
-                    str(member["id"]),      # member_id
-                    order_id,               # order_id
-                    order.user_id,          # student_id
-                    order.course_id,        # course_id
-                    code,                   # coupon_code
-                    order.amount,           # order_amount
-                    rate,                   # commission_rate
-                    earned,                 # commission_earned
-                    "pending",              # payout_status
-                    str(datetime.now()),    # created_at
-                ])
-                print(f"Commission recorded: ₹{earned} for member {member.get('name')}")
+            if child_member and str(child_member.get("active", "true")).lower() == "true":
+                ref_sheet = get_sheet("member_referrals")
+
+                # Check if this child member was referred by a parent member (2-tier)
+                parent_member_id = str(child_member.get("referred_by_member_id", "")).strip()
+                parent_member = next(
+                    (m for m in members if str(m.get("id")) == parent_member_id),
+                    None,
+                ) if parent_member_id else None
+
+                if parent_member and str(parent_member.get("active", "true")).lower() == "true":
+                    # ── 2-tier split: rates set by admin at member creation ────
+                    # child_member's commission_rate = what child earns on their own sales
+                    # child_member's parent_commission_rate = what parent earns on child's sales
+                    child_rate  = float(child_member.get("commission_rate", 0) or 0)
+                    parent_rate = float(child_member.get("parent_commission_rate", 0) or 0)
+
+                    child_earned  = round(order.amount * child_rate / 100, 2)
+                    parent_earned = round(order.amount * parent_rate / 100, 2)
+
+                    # Child commission row
+                    ref_sheet.append_row([
+                        str(uuid.uuid4()),          # id
+                        str(child_member["id"]),    # member_id
+                        order_id,                   # order_id
+                        order.user_id,              # student_id
+                        order.course_id,            # course_id
+                        code,                       # coupon_code
+                        order.amount,               # order_amount
+                        child_rate,                 # commission_rate
+                        child_earned,               # commission_earned
+                        "pending",                  # payout_status
+                        str(datetime.now()),        # created_at
+                    ])
+
+                    # Parent bonus commission row (same coupon code, different member)
+                    ref_sheet.append_row([
+                        str(uuid.uuid4()),          # id
+                        str(parent_member["id"]),   # member_id
+                        order_id,                   # order_id
+                        order.user_id,              # student_id
+                        order.course_id,            # course_id
+                        code,                       # coupon_code (child's code triggered this)
+                        order.amount,               # order_amount
+                        parent_rate,                # commission_rate
+                        parent_earned,              # commission_earned
+                        "pending",                  # payout_status
+                        str(datetime.now()),        # created_at
+                    ])
+
+                    print(f"2-tier commission: child {child_member.get('name')} ₹{child_earned} ({child_rate}%) | parent {parent_member.get('name')} ₹{parent_earned} ({parent_rate}%)")
+
+                else:
+                    # ── No parent: child gets their full commission_rate ───────
+                    rate   = float(child_member.get("commission_rate", 0) or 0)
+                    earned = round(order.amount * rate / 100, 2)
+
+                    ref_sheet.append_row([
+                        str(uuid.uuid4()),          # id
+                        str(child_member["id"]),    # member_id
+                        order_id,                   # order_id
+                        order.user_id,              # student_id
+                        order.course_id,            # course_id
+                        code,                       # coupon_code
+                        order.amount,               # order_amount
+                        rate,                       # commission_rate
+                        earned,                     # commission_earned
+                        "pending",                  # payout_status
+                        str(datetime.now()),        # created_at
+                    ])
+
+                    print(f"Commission recorded: ₹{earned} for member {child_member.get('name')}")
+
         except Exception as e:
             print(f"Commission recording error: {e}")
     # ── End referral hook ─────────────────────────────────────────────────────

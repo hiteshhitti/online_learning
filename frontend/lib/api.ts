@@ -214,6 +214,9 @@ export interface MemberStats {
   paid_out: number
   coupon_code: string
   commission_rate: number
+  sub_members_count: number        // >0 only if this member recruited others (parent)
+  bonus_earned: number             // 5% parent bonus earnings; 0 for regular child members
+  sub_member_referrals: number     // total sales made by sub-members
 }
 
 export interface MemberReferral {
@@ -224,6 +227,20 @@ export interface MemberReferral {
   order_amount: number
   commission_rate: number
   commission_earned: number
+  payout_status: 'pending' | 'paid'
+  created_at: string
+  // NOTE: tier/bonus info intentionally not exposed here
+}
+
+export interface MemberSubReferral {
+  id: string
+  sub_member_name: string
+  sub_member_coupon: string
+  student_name: string
+  course_title: string
+  order_amount: number
+  child_commission: number
+  parent_bonus: number
   payout_status: 'pending' | 'paid'
   created_at: string
 }
@@ -254,8 +271,9 @@ export const memberApi = {
       method: 'POST', body: JSON.stringify({ email, password }),
     }),
   profile:   () => memberRequest<MemberProfile>('/members/me/profile'),
-  stats:     () => memberRequest<MemberStats>('/members/me/stats'),
-  referrals: () => memberRequest<MemberReferral[]>('/members/me/referrals'),
+  stats:        () => memberRequest<MemberStats>('/members/me/stats'),
+  referrals:    () => memberRequest<MemberReferral[]>('/members/me/referrals'),
+  subReferrals: () => memberRequest<MemberSubReferral[]>('/members/me/sub-referrals'),
 }
 
 // ─── Admin member management ──────────────────────────────────────────────────
@@ -264,6 +282,8 @@ export interface AdminMember {
   id: string; name: string; email: string; coupon_code: string
   commission_rate: number; active: string; total_referrals: number
   total_earned: number; pending_payout: number; total_paid: number; created_at: string
+  referred_by_member_id: string   // blank if admin-created directly
+  sub_members_count: number       // how many members this one has recruited
 }
 
 export interface AdminMemberReferral {
@@ -277,8 +297,8 @@ export interface AdminMemberReferral {
 // These are added to the existing adminApi object — paste into adminApi in api.ts:
 // createMember, listMembers, getMemberReferrals, updateMemberCommission, processPayout
 export const adminMemberApi = {
-  create: (m: { name: string; email: string; password: string; commission_rate: number; coupon_code: string }) =>
-    adminRequest<{ msg: string; id: string }>('/admin/members', { method: 'POST', body: JSON.stringify(m) }),
+  create: (m: { name: string; email: string; password: string; commission_rate: number; coupon_code: string; discount_rate?: number; referred_by_member_id?: string; parent_commission_rate?: number }) =>
+    adminRequest<{ msg: string; id: string; coupon_code: string }>('/admin/members', { method: 'POST', body: JSON.stringify(m) }),
   list: () => adminRequest<AdminMember[]>('/admin/members'),
   getReferrals: (memberId: string) =>
     adminRequest<AdminMemberReferral[]>(`/admin/members/${memberId}/referrals`),

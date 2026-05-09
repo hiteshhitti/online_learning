@@ -271,32 +271,49 @@ def create_member(m: MemberCreate):
     if any(str(r.get("email", "")).lower() == m.email.lower() for r in rows):
         raise HTTPException(status_code=400, detail="Email already registered")
 
-    discounts = get_sheet("discounts").get_all_records()
-    matched = next(
-        (d for d in discounts if str(d.get("code", "")).upper() == m.coupon_code.upper()),
-        None,
-    )
-    if not matched:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Coupon code '{m.coupon_code}' not found in discounts sheet. Create it there first.",
-        )
+    code = m.coupon_code.strip().upper()
+
+    # ── Auto-create the discount coupon if it doesn't exist yet ───────────────
+    ds = get_sheet("discounts")
+    discounts = ds.get_all_records()
+    matched = next((d for d in discounts if str(d.get("code", "")).upper() == code), None)
 
     member_id = str(uuid.uuid4())
+
+    if not matched:
+        # discount_rate is how much % students save; defaults to commission_rate
+        discount_value = float(m.discount_rate if m.discount_rate is not None else m.commission_rate)
+        # Columns: code | type | value | max_uses | used | active | course_id | created_at | member_id
+        ds.append_row([
+            code,                   # code
+            "percent",              # type  (always % for referral coupons)
+            discount_value,         # value (e.g. 10 → 10% off)
+            0,                      # max_uses (0 = unlimited)
+            0,                      # used
+            "true",                 # active
+            "",                     # course_id (blank = all courses)
+            str(datetime.now()),    # created_at
+            member_id,              # member_id  (link)
+        ])
+    else:
+        # Discount already exists — just link member_id to it (col 9)
+        disc_rows = ds.get_all_records()
+        for i, d in enumerate(disc_rows, start=2):
+            if str(d.get("code", "")).upper() == code:
+                ds.update_cell(i, 9, member_id)
+                break
+    # ── End auto-create discount ───────────────────────────────────────────────
+
+    # col layout: id | name | email | password | commission_rate | coupon_code | active | referred_by_member_id | parent_commission_rate | created_at
     sheet.append_row([
         member_id, m.name, m.email, hash_password(m.password),
-        m.commission_rate, m.coupon_code.upper(), "true", str(datetime.now()),
+        m.commission_rate, code, "true",
+        m.referred_by_member_id or "",          # col 8: parent member who recruited this one
+        m.parent_commission_rate if m.parent_commission_rate is not None else "",  # col 9: % parent earns on this member's sales
+        str(datetime.now()),                    # col 10
     ])
 
-    # Link discount code → member (col I = member_id)
-    ds = get_sheet("discounts")
-    disc_rows = ds.get_all_records()
-    for i, d in enumerate(disc_rows, start=2):
-        if str(d.get("code", "")).upper() == m.coupon_code.upper():
-            ds.update_cell(i, 9, member_id)
-            break
-
-    return {"msg": "Member created", "id": member_id}
+    return {"msg": "Member created", "id": member_id, "coupon_code": code}
 
 
 @router.get("/members", dependencies=[Depends(require_admin)])
@@ -316,12 +333,20 @@ def list_members():
         ), 2)
         paid = round(sum(float(p.get("amount", 0) or 0)
                          for p in payouts if str(p.get("member_id")) == mid), 2)
+        # Count sub-members this member has recruited
+        sub_members = [
+            sm for sm in members
+            if str(sm.get("referred_by_member_id", "")).strip() == mid
+        ]
+
         result.append({
             "id": mid, "name": m.get("name"), "email": m.get("email"),
             "coupon_code": m.get("coupon_code"), "commission_rate": m.get("commission_rate"),
             "active": m.get("active"), "total_referrals": len(my_refs),
             "total_earned": total, "pending_payout": pending, "total_paid": paid,
             "created_at": m.get("created_at"),
+            "referred_by_member_id": m.get("referred_by_member_id", ""),
+            "sub_members_count": len(sub_members),
         })
     return result
 

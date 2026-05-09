@@ -109,13 +109,40 @@ def get_stats(authorization: Optional[str] = Header(None)):
 
     member = _get_member_by_id(member_id)
 
+    # ── Parent tier: count sub-members & their commission rows ───────────────
+    all_members = get_sheet("members").get_all_records()
+    sub_members = [
+        m for m in all_members
+        if str(m.get("referred_by_member_id", "")).strip() == member_id
+    ]
+    sub_member_ids = {str(m["id"]) for m in sub_members}
+
+    # All referral rows across ALL sub-members (for parent's full view)
+    all_referrals = get_sheet("member_referrals").get_all_records()
+    sub_member_referral_rows = [
+        r for r in all_referrals
+        if str(r.get("member_id", "")) in sub_member_ids
+    ]
+
+    # Bonus rows = rows where the coupon used belongs to a sub-member, not this member's own coupon
+    # This works regardless of what rate was set — no hardcoded % needed
+    member_obj       = _get_member_by_id(member_id)
+    my_coupon        = str(member_obj.get("coupon_code", "")).upper() if member_obj else ""
+    bonus_referrals  = [r for r in my_referrals if str(r.get("coupon_code", "")).upper() != my_coupon]
+    direct_referrals = [r for r in my_referrals if str(r.get("coupon_code", "")).upper() == my_coupon]
+    bonus_earned     = round(sum(float(r.get("commission_earned", 0) or 0) for r in bonus_referrals), 2)
+
     return {
-        "total_referrals":  total_referrals,
-        "total_earned":     total_earned,
-        "pending_payout":   pending_payout,
-        "paid_out":         paid_out,
-        "coupon_code":      member.get("coupon_code", "") if member else "",
-        "commission_rate":  member.get("commission_rate", 0) if member else 0,
+        "total_referrals":      len(direct_referrals),     # own student referrals only
+        "total_earned":         total_earned,
+        "pending_payout":       pending_payout,
+        "paid_out":             paid_out,
+        "coupon_code":          member.get("coupon_code", "") if member else "",
+        "commission_rate":      member.get("commission_rate", 0) if member else 0,
+        # Parent-only fields (blank/0 for child members who have no sub-members)
+        "sub_members_count":    len(sub_members),
+        "bonus_earned":         bonus_earned,
+        "sub_member_referrals": len(sub_member_referral_rows),  # total sales by sub-members
     }
 
 
@@ -150,8 +177,82 @@ def get_referrals(authorization: Optional[str] = Header(None)):
             "commission_earned":r.get("commission_earned", 0),
             "payout_status":    r.get("payout_status", "pending"),
             "created_at":       r.get("created_at", ""),
+            # NOTE: is_bonus intentionally NOT exposed here — child members
+            # must not know they are part of a 2-tier structure.
         })
 
     # Newest first
+    result.sort(key=lambda x: x["created_at"], reverse=True)
+    return result
+
+
+# ── Parent: sub-member referral records ───────────────────────────────────────
+
+@router.get("/me/sub-referrals")
+def get_sub_referrals(authorization: Optional[str] = Header(None)):
+    """
+    Returns all student referral records made by sub-members this member recruited.
+    Only visible to the parent member. Child members will get an empty list
+    (they have no sub-members so this naturally returns nothing).
+    """
+    member_payload = require_member(authorization)
+    member_id = member_payload["sub"]
+
+    # Find all members recruited by this parent
+    all_members = get_sheet("members").get_all_records()
+    sub_members = {
+        str(m["id"]): m for m in all_members
+        if str(m.get("referred_by_member_id", "")).strip() == member_id
+    }
+
+    if not sub_members:
+        return []
+
+    member_obj = _get_member_by_id(member_id)
+
+    # Get all referral rows that belong to any sub-member
+    all_referrals = get_sheet("member_referrals").get_all_records()
+    sub_referrals = [
+        r for r in all_referrals
+        if str(r.get("member_id", "")) in sub_members
+    ]
+
+    users   = {str(u["id"]): u for u in get_sheet("users").get_all_records()}
+    courses = {str(c["id"]): c for c in get_sheet("courses").get_all_records()}
+
+    result = []
+    for r in sub_referrals:
+        student = users.get(str(r.get("student_id", "")), {})
+        course  = courses.get(str(r.get("course_id", "")), {})
+        sname   = student.get("name", "—")
+        parts   = sname.split()
+        masked  = f"{parts[0]} {parts[-1][0]}." if len(parts) > 1 else sname
+
+        sub_m = sub_members.get(str(r.get("member_id", "")), {})
+
+        # Find the matching 5% bonus row for this parent from the same order
+        # Find matching parent bonus row: same order, belongs to this parent, coupon is NOT the parent's own
+        my_coupon_upper = str(member_obj.get("coupon_code", "")).upper() if member_obj else ""
+        bonus_row = next(
+            (b for b in all_referrals
+             if str(b.get("member_id")) == member_id
+             and str(b.get("order_id")) == str(r.get("order_id", ""))
+             and str(b.get("coupon_code", "")).upper() != my_coupon_upper),
+            None,
+        )
+
+        result.append({
+            "id":                  r.get("id"),
+            "sub_member_name":     sub_m.get("name", "—"),      # which child made this sale
+            "sub_member_coupon":   sub_m.get("coupon_code", ""),
+            "student_name":        masked,
+            "course_title":        course.get("title", "—"),
+            "order_amount":        r.get("order_amount", 0),
+            "child_commission":    r.get("commission_earned", 0),  # what the child earned
+            "parent_bonus":        bonus_row.get("commission_earned", 0) if bonus_row else 0,  # parent's 5%
+            "payout_status":       bonus_row.get("payout_status", "pending") if bonus_row else "pending",
+            "created_at":          r.get("created_at", ""),
+        })
+
     result.sort(key=lambda x: x["created_at"], reverse=True)
     return result

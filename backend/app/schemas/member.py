@@ -6,8 +6,11 @@ class MemberCreate(BaseModel):
     name: str
     email: EmailStr
     password: str
-    commission_rate: float = 20.0
+    commission_rate: float = 20.0          # % this member earns on their own coupon sales
     coupon_code: str
+    discount_rate: Optional[float] = None          # % students get off; defaults to commission_rate if omitted
+    referred_by_member_id: Optional[str] = None    # if set, this member was recruited by another member
+    parent_commission_rate: Optional[float] = None # % the recruiting parent earns when THIS member makes a sale
 
 
 class MemberLogin(BaseModel):

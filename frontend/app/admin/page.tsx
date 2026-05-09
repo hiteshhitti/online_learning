@@ -305,6 +305,7 @@ function MembersTab({ members, onRefresh }: { members: any[]; onRefresh: () => v
         <CreateMemberModal
           onClose={() => setShowCreate(false)}
           onCreated={() => { setShowCreate(false); onRefresh() }}
+          allMembers={members}
         />
       )}
 
@@ -321,8 +322,8 @@ function MembersTab({ members, onRefresh }: { members: any[]; onRefresh: () => v
 }
 
 // ─── Create Member Modal ──────────────────────────────────────────────────────
-function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: '', email: '', password: '', coupon_code: '', commission_rate: '10' })
+function CreateMemberModal({ onClose, onCreated, allMembers }: { onClose: () => void; onCreated: () => void; allMembers: AdminMember[] }) {
+  const [form, setForm] = useState({ name: '', email: '', password: '', coupon_code: '', commission_rate: '10', discount_rate: '', referred_by_member_id: '', parent_commission_rate: '5' })
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
 
@@ -342,13 +343,18 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
         password: form.password,
         coupon_code: form.coupon_code.toUpperCase(),
         commission_rate: Number(form.commission_rate),
+        discount_rate: form.discount_rate ? Number(form.discount_rate) : undefined,
+        referred_by_member_id: form.referred_by_member_id || undefined,
+        parent_commission_rate: form.referred_by_member_id ? Number(form.parent_commission_rate) : undefined,
       })
-      toast.success('Member created! Share their login credentials.')
+      toast.success('Member created! Discount coupon auto-generated. Share their login credentials.')
       onCreated()
     } catch (e: any) {
       setError(e?.message || 'Failed to create member')
     } finally { setLoading(false) }
   }
+
+  const effectiveDiscount = form.discount_rate || form.commission_rate || '—'
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
@@ -375,7 +381,7 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
             <Input type="password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} placeholder="Set a login password" />
           </div>
           <div>
-            <label className="text-xs font-medium block mb-1">Coupon Code *</label>
+            <label className="text-xs font-medium block mb-1">Coupon / Referral Code *</label>
             <div className="flex gap-2">
               <Input
                 value={form.coupon_code}
@@ -387,13 +393,74 @@ function CreateMemberModal({ onClose, onCreated }: { onClose: () => void; onCrea
                 Generate
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">Students use this code at checkout to give this member commission</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              This code doubles as a <strong>discount coupon</strong> — it will be auto-created in the Discounts sheet.
+              Students enter it at checkout to get a discount; member earns commission on the sale.
+            </p>
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium block mb-1">Commission Rate (%) *</label>
+              <Input type="number" min={1} max={100} value={form.commission_rate} onChange={e => setForm(f => ({ ...f, commission_rate: e.target.value }))} />
+              <p className="text-xs text-muted-foreground mt-1">Member earns this % of each sale</p>
+            </div>
+            <div>
+              <label className="text-xs font-medium block mb-1">Discount Rate (%)</label>
+              <Input
+                type="number" min={1} max={100}
+                value={form.discount_rate}
+                onChange={e => setForm(f => ({ ...f, discount_rate: e.target.value }))}
+                placeholder={form.commission_rate || '10'}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Student gets this % off (defaults to commission rate)</p>
+            </div>
+          </div>
+
+          {/* Referred by member dropdown */}
           <div>
-            <label className="text-xs font-medium block mb-1">Commission Rate (%) *</label>
-            <Input type="number" min={1} max={50} value={form.commission_rate} onChange={e => setForm(f => ({ ...f, commission_rate: e.target.value }))} />
-            <p className="text-xs text-muted-foreground mt-1">e.g. 10 means member earns 10% of each referred sale</p>
+            <label className="text-xs font-medium block mb-1">Referred by Member <span className="text-muted-foreground">(optional)</span></label>
+            <select
+              className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background"
+              value={form.referred_by_member_id}
+              onChange={e => setForm(f => ({ ...f, referred_by_member_id: e.target.value }))}
+            >
+              <option value="">— None (admin-created directly) —</option>
+              {allMembers.map(m => (
+                <option key={m.id} value={m.id}>{m.name} ({m.coupon_code})</option>
+              ))}
+            </select>
+            {form.referred_by_member_id && (
+              <div className="mt-2 space-y-2">
+                <div>
+                  <label className="text-xs font-medium block mb-1">
+                    Recruiter&apos;s Commission Rate (%) <span className="text-muted-foreground">— what the recruiter earns on this member&apos;s sales</span>
+                  </label>
+                  <Input
+                    type="number" min={1} max={100}
+                    value={form.parent_commission_rate}
+                    onChange={e => setForm(f => ({ ...f, parent_commission_rate: e.target.value }))}
+                    placeholder="e.g. 5"
+                    className="w-32"
+                  />
+                </div>
+              </div>
+            )}
           </div>
+
+          {/* Summary pill */}
+          {form.coupon_code && (
+            <div className="rounded-lg bg-muted/60 border px-3 py-2 text-xs flex flex-col gap-0.5">
+              <span>🎟️ Code <code className="font-mono font-bold">{form.coupon_code}</code> gives students <strong>{effectiveDiscount}% off</strong></span>
+              {form.referred_by_member_id
+                ? <>
+                    <span>💰 New member earns <strong>{form.commission_rate || '—'}%</strong> commission on each use</span>
+                    <span>🤝 Recruiter earns <strong>{form.parent_commission_rate || '—'}% bonus</strong> from each of their sales</span>
+                  </>
+                : <span>💰 Member earns <strong>{form.commission_rate || '—'}% commission</strong> on each use</span>
+              }
+            </div>
+          )}
         </div>
 
         {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{error}</p>}

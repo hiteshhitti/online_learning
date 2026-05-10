@@ -12,8 +12,8 @@ from datetime import datetime
 
 router = APIRouter()
 
-ADMIN_EMAIL    = os.getenv("ADMIN_EMAIL",    "admin@learnhub.com")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")  # store hashed in prod
+ADMIN_EMAIL    = os.getenv("ADMIN_EMAIL",    "hitesh@uitcec.com")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "PythonDS123$")  # store hashed in prod
 
 
 # ── Auth ──────────────────────────────────────────────────────────────────────

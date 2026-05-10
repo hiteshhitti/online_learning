@@ -120,9 +120,8 @@ def create_order(order: OrderCreate):
         str(datetime.now()),         # created_id
     ])
 
-    # NOTE: Enrollment is NOT automatic anymore.
-    # After you verify the student's UPI payment (WhatsApp screenshot),
-    # use PATCH /admin/orders/{order_id}/activate to enroll them.
+    # NOTE: Enrollment is handled automatically by Razorpay verify-payment endpoint.
+    # This route only creates the order record. Do NOT enroll here.
 
     # ── Referral commission hook (2-tier) ────────────────────────────────────
     if order.discount_code:

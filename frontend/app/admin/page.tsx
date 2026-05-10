@@ -1387,7 +1387,7 @@ export default function AdminDashboard() {
   const [stats, setStats]                 = useState<AdminStats | null>(null)
   const [courses, setCourses]             = useState<AdminCourse[]>([])
   const [enrollments, setEnrollments]     = useState<AdminEnrollment[]>([])
-  const [pendingOrders, setPendingOrders] = useState<any[]>([])
+
   const [enquiries, setEnquiries]         = useState<AdminEnquiry[]>([])
   const [discounts, setDiscounts]         = useState<AdminDiscount[]>([])
   const [batches, setBatches]             = useState<ApiBatch[]>([])
@@ -1462,16 +1462,6 @@ export default function AdminDashboard() {
         } catch (e) { console.error('Instalment tab load error:', e) }
       } else if (tab === 'enrollments') {
         setEnrollments(await adminApi.getEnrollments(filterDiscount || undefined))
-        // Also load pending orders
-        try {
-          const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-          const token = sessionStorage.getItem('adminToken') || ''
-          const res = await fetch(`${API}/admin/orders`, { headers: { 'X-Admin-Token': token } })
-          if (res.ok) {
-            const data = await res.json()
-            setPendingOrders((data || []).filter((o: any) => o.status === 'pending'))
-          }
-        } catch {}
       } else if (tab === 'enquiries') {
         setEnquiries(await adminApi.getEnquiries())
       } else if (tab === 'discounts') {
@@ -1809,75 +1799,7 @@ export default function AdminDashboard() {
           {!loading && activeTab === 'enrollments' && (
             <div className="space-y-6">
 
-              {/* Pending Orders */}
-              {pendingOrders.length > 0 && (
-                <div>
-                  <h3 className="font-bold text-sm mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse inline-block" />
-                    Pending Orders — Awaiting Activation ({pendingOrders.length})
-                  </h3>
-                  <div className="overflow-x-auto rounded-lg border border-amber-200 dark:border-amber-800">
-                    <table className="w-full text-sm">
-                      <thead className="bg-amber-50 dark:bg-amber-950">
-                        <tr>
-                          {['Student', 'Email', 'Course', 'Amount', 'Reference', 'Date', ''].map(h => (
-                            <th key={h} className="text-left px-4 py-3 font-medium text-amber-800 dark:text-amber-200 whitespace-nowrap">{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-amber-100 dark:divide-amber-900">
-                        {pendingOrders.map((o, i) => (
-                          <tr key={i} className="hover:bg-amber-50/50 dark:hover:bg-amber-950/50">
-                            <td className="px-4 py-3 font-medium">{o.student_name || o.user_id}</td>
-                            <td className="px-4 py-3 text-muted-foreground text-xs">{o.student_email || '—'}</td>
-                            <td className="px-4 py-3 max-w-[160px] truncate" title={o.course_title}>{o.course_title || '—'}</td>
-                            <td className="px-4 py-3">₹{Number(o.amount || 0).toLocaleString('en-IN')}</td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground">{o.reference || '—'}</td>
-                            <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                              {o.created_at ? new Date(o.created_at).toLocaleDateString('en-IN') : '—'}
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex gap-2">
-                                <Button size="sm"
-                                  onClick={async () => {
-                                    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                                    const token = sessionStorage.getItem('adminToken') || ''
-                                    const res = await fetch(`${API}/admin/orders/${o.order_id}/activate`, {
-                                      method: 'PATCH',
-                                      headers: { 'X-Admin-Token': token }
-                                    })
-                                    if (res.ok) {
-                                      toast.success(`${o.student_name} enrolled successfully!`)
-                                      setPendingOrders(p => p.filter((_, idx) => idx !== i))
-                                      setEnrollments(await adminApi.getEnrollments())
-                                    } else {
-                                      const d = await res.json()
-                                      toast.error(d.detail || 'Failed to activate')
-                                    }
-                                  }}>
-                                  ✓ Activate
-                                </Button>
-                                <Button size="sm" variant="destructive"
-                                  onClick={async () => {
-                                    const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-                                    const token = sessionStorage.getItem('adminToken') || ''
-                                    await fetch(`${API}/admin/orders/${o.order_id}/reject`, {
-                                      method: 'PATCH',
-                                      headers: { 'X-Admin-Token': token }
-                                    })
-                                    toast.success('Order rejected')
-                                    setPendingOrders(p => p.filter((_, idx) => idx !== i))
-                                  }}>
-                                  ✕ Reject
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+
               )}
 
               <div className="flex flex-col sm:flex-row gap-3">

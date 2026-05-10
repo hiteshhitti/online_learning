@@ -54,7 +54,25 @@ export interface CreateOrderPayload {
   discount_code?: string; discount_amount?: number; reference?: string
   batch_id?: string
 }
-export interface OrderResponse { msg: string; order_id?: string }
+export interface OrderResponse { msg: string; order_id: string }   // always returned
+export interface DiscountResult {
+  valid: boolean; message: string; discount_amount: number
+  final_amount: number; code?: string
+}
+
+// ── Razorpay ──────────────────────────────────────────────────────────────────
+export interface RazorpayOrderResponse {
+  razorpay_order_id: string
+  amount:   number     // paise
+  currency: string
+  key_id:   string
+}
+export interface RazorpayVerifyResponse {
+  success:             boolean
+  message:             string
+  razorpay_payment_id: string
+  enrolled:            boolean
+}
 export interface DiscountResult {
   valid: boolean; message: string; discount_amount: number
   final_amount: number; code?: string

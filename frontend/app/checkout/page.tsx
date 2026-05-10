@@ -15,15 +15,17 @@ import { coursesApi, ApiCourse, ordersApi, DiscountResult, batchesApi, ApiBatch 
 import { useAuth } from '@/context/AuthContext'
 import { toast } from 'sonner'
 import { createCashfreeOrder, openCashfreeCheckout } from '@/lib/cashfree'
+import { createRazorpayOrder, openRazorpayCheckout, verifyRazorpayPayment } from '@/lib/razorpay'
 
-// ── QR Payment Config ── Replace these with your actual details ──────────────
+// ── Payment Config ─────────────────────────────────────────────────────────────
+// Set ONE flag to true. Priority: useRazorpay > useCashfree > QR/UPI
 const QR_CONFIG = {
-  upiId: '9041680789-1@okbizaxis',           // ← your UPI ID e.g. 9876543210@paytm
-  name: 'ultimate institute of technologies',      // ← your name/business name
-  qrImageUrl: '/qr.png',                   // ← paste your QR code image URL or leave empty
-  whatsappNumber: '9041680789',   // ← your WhatsApp number with country code (no +)
-  // Set to true to use Cashfree instead of QR once your gateway is activated
-  useCashfree: false,
+  upiId:        '9041680789-1@okbizaxis',
+  name:         'ultimate institute of technologies',
+  qrImageUrl:   '/qr.png',
+  whatsappNumber: '9041680789',
+  useCashfree:  false,   // flip true when Cashfree is approved
+  useRazorpay:  true,    // ← ACTIVE NOW
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -218,6 +220,82 @@ function CheckoutForm() {
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Payment failed. Please try again.')
     } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleRazorpayPurchase = async () => {
+    if (!isLoggedIn) { toast.error('Please sign in to complete your purchase'); return }
+    if (!course) return
+    if (!batchId) {
+      toast.error('No batch selected. Redirecting...')
+      router.replace(`/courses/${courseId}#batches`)
+      return
+    }
+    if (!form.name || !form.email) { toast.error('Please fill in your name and email'); return }
+    if (!form.agreed) { toast.error('Please accept the terms to continue'); return }
+
+    setLoading(true)
+    try {
+      // Step 1: Create pending order in DB
+      const { order_id: internalOrderId } = await ordersApi.create({
+        user_id:         user!.id,
+        course_id:       course.id,
+        amount:          finalTotal,
+        discount_code:   discount?.valid ? discount.code : undefined,
+        discount_amount: discountAmt || undefined,
+        reference:       form.reference || undefined,
+        batch_id:        batchId || undefined,
+      })
+
+      if (!internalOrderId) throw new Error('Order creation failed — no order ID returned')
+
+      // Step 2: Create Razorpay order via backend
+      const rzpOrder = await createRazorpayOrder(finalTotal, internalOrderId)
+
+      // Step 3: Open Razorpay modal
+      await openRazorpayCheckout({
+        razorpayOrderId: rzpOrder.razorpay_order_id,
+        amount:          rzpOrder.amount,
+        currency:        rzpOrder.currency,
+        userName:        form.name,
+        userEmail:       form.email,
+        userPhone:       form.phone || undefined,
+        courseName:      course.title,
+
+        onSuccess: async (response) => {
+          try {
+            // Step 4: Verify signature → enroll student
+            await verifyRazorpayPayment({
+              razorpay_order_id:   response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature:  response.razorpay_signature,
+              internal_order_id:   internalOrderId,
+              user_id:             user!.id,
+              course_id:           course!.id,
+            })
+            setSuccess(true)
+            toast.success('Payment successful! You are now enrolled.')
+            setTimeout(() => router.push('/my-courses'), 2500)
+          } catch (err) {
+            toast.error(err instanceof Error ? err.message : 'Payment verification failed.')
+          } finally {
+            setLoading(false)
+          }
+        },
+
+        onDismiss: () => {
+          toast('Payment cancelled. Your order is saved — complete payment anytime.')
+          setLoading(false)
+        },
+
+        onError: (msg) => {
+          toast.error(`Payment failed: ${msg}`)
+          setLoading(false)
+        },
+      })
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
       setLoading(false)
     }
   }
@@ -518,7 +596,27 @@ function CheckoutForm() {
                   )}
 
                   {/* ── Payment Section ── */}
-                  {QR_CONFIG.useCashfree ? (
+                  {QR_CONFIG.useRazorpay ? (
+                    // ── Razorpay ─────────────────────────────────────────────
+                    <>
+                      <Button
+                        className="w-full mt-5 gap-2"
+                        size="lg"
+                        onClick={handleRazorpayPurchase}
+                        disabled={loading || !isLoggedIn}
+                      >
+                        {loading
+                          ? <><Loader2 className="w-4 h-4 animate-spin" />Opening payment…</>
+                          : <><Lock className="w-4 h-4" />Pay with Razorpay</>}
+                      </Button>
+                      <div className="flex items-center justify-center gap-1.5 mt-3">
+                        <Shield className="w-3 h-3 text-muted-foreground" />
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Secured by Razorpay · UPI · Cards · Net Banking · Wallets
+                        </p>
+                      </div>
+                    </>
+                  ) : QR_CONFIG.useCashfree ? (
                     // ── Cashfree (activate when gateway is approved) ──
                     <>
                       <Button

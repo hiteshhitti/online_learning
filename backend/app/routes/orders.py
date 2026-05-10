@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from app.utils.sheets import get_sheet
 from app.utils.helpers import enroll_user
-from app.schemas.order import OrderCreate, DiscountValidate
+from app.utils.payment import create_razorpay_order, verify_razorpay_signature, KEY_ID
+from app.schemas.order import OrderCreate, DiscountValidate, RazorpayOrderRequest, RazorpayVerifyRequest
 import uuid
 from datetime import datetime
 
@@ -234,3 +235,83 @@ def get_user_orders(user_id: str):
     sheet = get_sheet("orders")
     all_orders = sheet.get_all_records()
     return [o for o in all_orders if str(o.get("user_id")) == str(user_id)]
+
+
+# ── Razorpay ──────────────────────────────────────────────────────────────────
+
+@router.post("/razorpay/create-order")
+def razorpay_create_order(payload: RazorpayOrderRequest):
+    """
+    Step 1 — Create a Razorpay order.
+    Frontend calls this, then opens Razorpay modal with the returned razorpay_order_id.
+    """
+    if payload.amount < 1:
+        raise HTTPException(status_code=400, detail="Amount must be at least ₹1")
+
+    receipt = f"rcpt_{uuid.uuid4().hex[:12]}"
+
+    try:
+        rz_order = create_razorpay_order(payload.amount, receipt)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Razorpay error: {str(e)}")
+
+    return {
+        "razorpay_order_id": rz_order["id"],
+        "amount":            rz_order["amount"],   # paise
+        "currency":          rz_order["currency"],
+        "key_id":            KEY_ID,               # public key — safe to send
+    }
+
+
+@router.post("/razorpay/verify-payment")
+def razorpay_verify_payment(payload: RazorpayVerifyRequest):
+    """
+    Step 3 — Verify Razorpay signature and enroll the student.
+    Orders sheet column 11 = status (id|user_id|course_id|amount|full_amount|
+    payment_type|discount_code|discount_amount|reference|batch_id|STATUS|created_at)
+    """
+    if not all([payload.razorpay_order_id, payload.razorpay_payment_id, payload.razorpay_signature]):
+        raise HTTPException(status_code=400, detail="Missing payment fields")
+
+    # Verify HMAC signature
+    valid = verify_razorpay_signature(
+        payload.razorpay_order_id,
+        payload.razorpay_payment_id,
+        payload.razorpay_signature,
+    )
+    if not valid:
+        raise HTTPException(status_code=400, detail="Payment signature verification failed")
+
+    # Mark internal order as paid
+    orders_sheet = get_sheet("orders")
+    rows = orders_sheet.get_all_records()
+
+    target_row = None
+    target     = None
+    for i, r in enumerate(rows, start=2):
+        if str(r.get("id", "")) == payload.internal_order_id:
+            target     = r
+            target_row = i
+            break
+
+    if target and target_row:
+        orders_sheet.update_cell(target_row, 11, "paid")   # col 11 = status
+        try:
+            orders_sheet.update_cell(target_row, 13, payload.razorpay_payment_id)  # col 13 = razorpay_payment_id (optional extra col)
+        except Exception:
+            pass
+
+    # Enroll the student
+    enrolled = False
+    if payload.user_id and payload.course_id:
+        reference = target.get("referance", "") if target else ""  # note: sheet has typo "referance"
+        enrolled  = enroll_user(payload.user_id, payload.course_id, reference)
+
+    return {
+        "success":             True,
+        "message":             "Payment verified and enrollment activated!",
+        "razorpay_payment_id": payload.razorpay_payment_id,
+        "enrolled":            enrolled,
+    }

@@ -581,8 +581,8 @@ def activate_order(order_id: str):
     if str(target.get("status", "")).lower() == "paid":
         return {"msg": "Order is already activated", "order_id": order_id}
 
-    # Mark order as paid (column 9 = status)
-    orders_sheet.update_cell(target_row, 9, "paid")
+    # Mark order as paid (column 11 = status — after id,user_id,course_id,amount,full_amount,payment_type,discount_code,discount_amount,reference,batch_id,STATUS)
+    orders_sheet.update_cell(target_row, 11, "paid")
 
     # Enroll the student
     user_id   = str(target.get("user_id", ""))
@@ -608,7 +608,7 @@ def reject_order(order_id: str):
 
     for i, r in enumerate(rows, start=2):
         if str(r.get("id") or r.get("order_id", "")) == order_id:
-            orders_sheet.update_cell(i, 9, "rejected")
+            orders_sheet.update_cell(i, 11, "rejected")  # column 11 = status
             return {"msg": "Order rejected", "order_id": order_id}
 
     raise HTTPException(status_code=404, detail="Order not found")

@@ -1,9 +1,14 @@
 from fastapi import FastAPI, Request, UploadFile, File, Header
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from app.routes import users, courses, orders, dashboard, enquiry, admin, members, batches
 import os, shutil, uuid
 from fastapi.middleware.cors import CORSMiddleware
+
+# ── Load .env BEFORE importing routes (routes import payment.py which needs env vars) ──
+from dotenv import load_dotenv
+load_dotenv()
+
+from app.routes import users, courses, orders, dashboard, enquiry, admin, members, batches
 
 app = FastAPI(title="LearnHub API", version="1.0.0")
 

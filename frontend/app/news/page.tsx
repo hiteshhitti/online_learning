@@ -18,14 +18,14 @@ interface Article {
 }
 
 const CATEGORIES = [
-  { label: 'All',       icon: Flame,         topic: 'technology' },
-  { label: 'Tech News', icon: Cpu,           topic: 'technology' },
-  { label: 'Jobs',      icon: Briefcase,     topic: 'business'   },
-  { label: 'Startups',  icon: TrendingUp,    topic: 'business'   },
-  { label: 'Education', icon: GraduationCap, topic: 'education'  },
-  { label: 'Science',   icon: FlaskConical,  topic: 'science'    },
-  { label: 'Finance',   icon: IndianRupee,   topic: 'business'   },
-  { label: 'AI & ML',   icon: Lightbulb,     topic: 'technology' },
+  { label: 'All',       icon: Flame,         param: { topic: 'technology' }                           },
+  { label: 'Tech News', icon: Cpu,           param: { topic: 'technology' }                           },
+  { label: 'Jobs',      icon: Briefcase,     param: { q: 'jobs hiring India tech 2026' }              },
+  { label: 'Startups',  icon: TrendingUp,    param: { q: 'India startup funding 2026' }               },
+  { label: 'Education', icon: GraduationCap, param: { topic: 'education' }                            },
+  { label: 'Science',   icon: FlaskConical,  param: { topic: 'science' }                              },
+  { label: 'Finance',   icon: IndianRupee,   param: { q: 'India finance economy market 2026' }        },
+  { label: 'AI & ML',   icon: Lightbulb,     param: { q: 'artificial intelligence machine learning' } },
 ]
 
 const JOB_FACTS = [
@@ -148,21 +148,22 @@ export default function NewsPage() {
   const [articles, setArticles]     = useState<Article[]>([])
   const [loading, setLoading]       = useState(true)
   const [activeCategory, setActive] = useState('All')
-  const [activeTopic, setTopic]     = useState('technology')
+  const [activeParam, setParam]     = useState<Record<string,string>>({ topic: 'technology' })
   const [search, setSearch]         = useState('')
   const [refreshing, setRefreshing] = useState(false)
 
-  const fetchNews = (topic: string, refresh = false) => {
+  const fetchNews = (param: Record<string,string>, refresh = false) => {
     if (refresh) setRefreshing(true)
     else setLoading(true)
-    fetch(`/api/news?topic=${topic}&max=20`)
+    const qs = new URLSearchParams({ ...param, max: '20' }).toString()
+    fetch(`/api/news?${qs}`)
       .then(r => r.json())
       .then(d => setArticles(d.articles || []))
       .catch(() => setArticles([]))
       .finally(() => { setLoading(false); setRefreshing(false) })
   }
 
-  useEffect(() => { fetchNews(activeTopic) }, [activeTopic])
+  useEffect(() => { fetchNews(activeParam) }, [JSON.stringify(activeParam)])
 
   const filtered = articles.filter(a =>
     !search ||
@@ -220,9 +221,9 @@ export default function NewsPage() {
 
           {/* Category Tabs */}
           <div className="flex gap-2 mt-8 overflow-x-auto pb-1">
-            {CATEGORIES.map(({ label, icon: Icon, topic }) => (
+            {CATEGORIES.map(({ label, icon: Icon, param }) => (
               <button key={label}
-                onClick={() => { setActive(label); setTopic(topic); setSearch('') }}
+                onClick={() => { setActive(label); setParam(param); setSearch('') }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-200 ${
                   activeCategory === label
                     ? 'bg-purple-700 text-white shadow-lg shadow-purple-200'
@@ -231,7 +232,7 @@ export default function NewsPage() {
                 <Icon className="w-4 h-4" /> {label}
               </button>
             ))}
-            <button onClick={() => fetchNews(activeTopic, true)}
+            <button onClick={() => fetchNews(activeParam, true)}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap bg-white border border-gray-200 text-gray-500 hover:text-purple-600 hover:border-purple-300 transition-all ml-auto">
               <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
             </button>

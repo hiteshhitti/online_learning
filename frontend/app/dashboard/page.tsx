@@ -21,7 +21,6 @@ interface NewsArticle {
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const NEWS_API_KEY = process.env.NEXT_PUBLIC_NEWS_API_KEY || ''
 const ACHIEVEMENTS = [
   { icon: Award,      value: '98%',   label: 'Placement Rate' },
   { icon: Star,       value: '4.9',   label: 'Avg Rating' },
@@ -103,27 +102,10 @@ export default function PublicDashboardPage() {
       .finally(() => setSL(false))
   }, [])
 
-  // Load news
+  // Load news via server-side proxy (avoids NewsAPI browser restriction)
   const fetchNews = () => {
     setNL(true); setNE(false)
-    if (!NEWS_API_KEY) {
-      // Fallback: GNews free API (no key needed for basic use)
-      fetch('https://gnews.io/api/v4/search?q=technology+education+india&lang=en&max=8&apikey=demo')
-        .then(r => r.json())
-        .then(d => {
-          if (d.articles?.length) {
-            setNews(d.articles.map((a: any) => ({
-              title: a.title, description: a.description, url: a.url,
-              urlToImage: a.image, publishedAt: a.publishedAt,
-              source: { name: a.source.name }
-            })))
-          } else setNE(true)
-        })
-        .catch(() => setNE(true))
-        .finally(() => setNL(false))
-      return
-    }
-    fetch(`https://newsapi.org/v2/top-headlines?category=technology&country=in&pageSize=8&apiKey=${NEWS_API_KEY}`)
+    fetch("/api/news")
       .then(r => r.json())
       .then(d => { d.articles?.length ? setNews(d.articles) : setNE(true) })
       .catch(() => setNE(true))
@@ -278,7 +260,7 @@ export default function PublicDashboardPage() {
                   <div className="p-8 text-center text-muted-foreground">
                     <Newspaper className="w-8 h-8 mx-auto mb-2 opacity-30" />
                     <p className="text-sm">News unavailable.</p>
-                    <p className="text-xs mt-1">Add <code className="bg-muted px-1 rounded">NEXT_PUBLIC_NEWS_API_KEY</code> on Vercel to enable.</p>
+                    <p className="text-xs mt-1">Add <code className="bg-muted px-1 rounded">NEWS_API_KEY</code> on Vercel to enable.</p>
                     <button onClick={fetchNews} className="mt-3 text-xs text-primary hover:underline">Retry</button>
                   </div>
                 ) : (

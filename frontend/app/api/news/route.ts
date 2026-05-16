@@ -8,11 +8,14 @@ export async function GET() {
   }
   try {
     const res = await fetch(
-      `https://newsapi.org/v2/top-headlines?category=technology&country=in&pageSize=8&apiKey=${NEWS_API_KEY}`,
-      { next: { revalidate: 1800 } } // cache 30 mins
+      `https://newsapi.org/v2/everything?q=technology+india&language=en&sortBy=publishedAt&pageSize=8&apiKey=${NEWS_API_KEY}`,
+      { next: { revalidate: 1800 } }
     )
     const data = await res.json()
-    return NextResponse.json({ articles: data.articles || [] })
+    const articles = (data.articles || []).filter(
+      (a: any) => a.title !== '[Removed]' && a.url !== 'https://removed.com'
+    )
+    return NextResponse.json({ articles })
   } catch {
     return NextResponse.json({ articles: [] })
   }

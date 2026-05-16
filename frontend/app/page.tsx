@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { ArrowRight, CheckCircle, PlayCircle, Award, Zap, Loader2, Users, BookOpen, Star, ChevronRight } from 'lucide-react'
+import { ArrowRight, CheckCircle, PlayCircle, Award, Zap, Loader2, Users, BookOpen, Star, ChevronRight, Newspaper, Calendar, ExternalLink, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { CourseCard } from '@/components/course-card'
@@ -44,6 +44,17 @@ export default function Home() {
   const [loadingCourses, setLoadingCourses] = useState(true)
   const [activeCategory, setActiveCategory] = useState('All')
 
+
+  const [newsArticles, setNewsArticles]     = useState<any[]>([])
+  const [newsLoading, setNewsLoading]       = useState(true)
+
+  useEffect(() => {
+    fetch('/api/news?max=4')
+      .then(r => r.json())
+      .then(d => setNewsArticles(d.articles || []))
+      .catch(() => setNewsArticles([]))
+      .finally(() => setNewsLoading(false))
+  }, [])
   useEffect(() => {
     coursesApi.list()
       .then(data => setAllCourses(data))
@@ -280,6 +291,74 @@ export default function Home() {
         </div>
       </section>
 
+      {/* ── Tech & Career Updates ─────────────────────────────────── */}
+      <section className="py-20 px-4 bg-white border-t border-gray-100" aria-label="Tech and career news">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1 rounded-full bg-purple-100 text-purple-700">
+                  <span className="w-1.5 h-1.5 bg-purple-600 rounded-full animate-pulse" />
+                  Live Updates
+                </span>
+              </div>
+              <h2 className="text-3xl font-extrabold text-gray-900">Tech &amp; Career Updates</h2>
+              <p className="text-gray-500 mt-1 text-sm">Stay ahead with the latest in technology and career opportunities</p>
+            </div>
+          </div>
+          {newsLoading ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {[0,1,2,3].map(i => (
+                <div key={i} className="rounded-2xl border border-gray-200 overflow-hidden">
+                  <div className="h-44 bg-gray-100 animate-pulse" />
+                  <div className="p-4 space-y-2">
+                    <div className="h-3 bg-gray-100 animate-pulse rounded w-1/3" />
+                    <div className="h-4 bg-gray-100 animate-pulse rounded" />
+                    <div className="h-4 bg-gray-100 animate-pulse rounded w-4/5" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : newsArticles.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {newsArticles.slice(0,4).map((article, i) => (
+                <a key={i} href={article.url} target="_blank" rel="noopener noreferrer"
+                  className="group flex flex-col rounded-2xl border border-gray-200 overflow-hidden hover:border-purple-300 hover:shadow-lg transition-all duration-300 bg-white">
+                  {article.image && (
+                    <div className="overflow-hidden h-44 bg-gray-100">
+                      <img src={article.image} alt={article.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    </div>
+                  )}
+                  <div className="flex flex-col flex-1 p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold text-purple-600 truncate">{article.source?.name}</span>
+                      <span className="text-xs text-gray-400 whitespace-nowrap ml-2 flex items-center gap-1">
+                        <Calendar className="w-3 h-3" />
+                        {new Date(article.publishedAt).toLocaleDateString("en-IN", { day:"numeric", month:"short" })}
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-purple-700 transition-colors mb-2">
+                      {article.title}
+                    </h3>
+                    {article.description && (
+                      <p className="text-xs text-gray-500 leading-relaxed line-clamp-2 mb-3 flex-1">
+                        {article.description}
+                      </p>
+                    )}
+                    <div className="flex items-center gap-1 text-xs font-semibold text-orange-500 group-hover:text-orange-600 mt-auto">
+                      Read More <ExternalLink className="w-3 h-3" />
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : null}
+          <p className="text-center text-xs text-gray-400 mt-8">
+            News powered by GNews · Updated every 30 minutes · Sources attributed to original publishers
+          </p>
+        </div>
+      </section>
       {/* ── CTA ──────────────────────────────────────────────────────── */}
       <section className="py-20 px-4 bg-gray-50">
         <div className="max-w-3xl mx-auto text-center">

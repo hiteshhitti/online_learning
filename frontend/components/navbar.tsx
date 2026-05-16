@@ -62,6 +62,12 @@ export function Navbar() {
                 Live Classes
               </Link>
               <Link
+                href="/news"
+                className="text-sm font-medium text-foreground hover:text-primary transition-colors"
+              >
+                News
+              </Link>
+              <Link
                 href="/enquiry"
                 className="text-sm font-medium text-foreground hover:text-primary transition-colors"
               >
@@ -174,6 +180,13 @@ export function Navbar() {
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Live Classes
+              </Link>
+              <Link
+                href="/news"
+                className="block text-sm font-medium text-foreground hover:text-primary transition-colors"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                News
               </Link>
               <Link
                 href="/enquiry"

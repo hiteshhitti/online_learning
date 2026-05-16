@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
   Search, ArrowUpRight, Clock, Flame, BookOpen,
-  Briefcase, FlaskConical, GraduationCap, Cpu, RefreshCw, ArrowLeft
+  Briefcase, FlaskConical, GraduationCap, Cpu, RefreshCw,
+  ArrowLeft, TrendingUp, IndianRupee, Lightbulb, Zap
 } from 'lucide-react'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
 interface Article {
   title:       string
   description: string
@@ -17,70 +17,78 @@ interface Article {
   source:      { name: string }
 }
 
-// ─── Categories ───────────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { label: 'All',         icon: Flame,          topic: 'technology' },
-  { label: 'Technology',  icon: Cpu,            topic: 'technology' },
-  { label: 'Business',    icon: Briefcase,      topic: 'business'   },
-  { label: 'Science',     icon: FlaskConical,   topic: 'science'    },
-  { label: 'Education',   icon: GraduationCap,  topic: 'education'  },
+  { label: 'All',       icon: Flame,         topic: 'technology' },
+  { label: 'Tech News', icon: Cpu,           topic: 'technology' },
+  { label: 'Jobs',      icon: Briefcase,     topic: 'business'   },
+  { label: 'Startups',  icon: TrendingUp,    topic: 'business'   },
+  { label: 'Education', icon: GraduationCap, topic: 'education'  },
+  { label: 'Science',   icon: FlaskConical,  topic: 'science'    },
+  { label: 'Finance',   icon: IndianRupee,   topic: 'business'   },
+  { label: 'AI & ML',   icon: Lightbulb,     topic: 'technology' },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const JOB_FACTS = [
+  { stat: '3.2M+',  desc: 'Tech job openings expected in India by 2025' },
+  { stat: '68%',    desc: 'Indian tech companies plan to hire freshers this year' },
+  { stat: '40%',    desc: 'Jump in AI/ML job postings in last 12 months' },
+  { stat: '2.5x',   desc: 'Higher salary for cloud-certified engineers' },
+  { stat: '85%',    desc: 'IT companies prefer candidates with project experience' },
+  { stat: '72%',    desc: 'Hiring managers value portfolio over degree' },
+]
+
+const SALARY_FACTS = [
+  { role: 'Full Stack Developer',  salary: '8-18 LPA'  },
+  { role: 'Data Scientist',        salary: '8-25 LPA'  },
+  { role: 'Cybersecurity Analyst', salary: '6-15 LPA'  },
+  { role: 'Cloud Engineer',        salary: '10-22 LPA' },
+  { role: 'AI/ML Engineer',        salary: '12-30 LPA' },
+  { role: 'DevOps Engineer',       salary: '9-20 LPA'  },
+]
+
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime()
-  const h    = Math.floor(diff / 3_600_000)
-  const d    = Math.floor(h / 24)
+  const h = Math.floor(diff / 3_600_000)
   if (h < 1)  return `${Math.floor(diff / 60000)}m ago`
   if (h < 24) return `${h}h ago`
-  return `${d}d ago`
+  return `${Math.floor(h / 24)}d ago`
 }
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })
+  return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 function Skeleton({ className }: { className?: string }) {
   return <div className={`animate-pulse bg-gray-100 rounded-xl ${className}`} />
 }
 
-// ─── Hero Card (first article) ────────────────────────────────────────────────
 function HeroCard({ article }: { article: Article }) {
   return (
     <a href={article.url} target="_blank" rel="noopener noreferrer"
-      className="group relative flex flex-col justify-end overflow-hidden rounded-3xl min-h-[480px] sm:min-h-[520px] shadow-2xl">
-      {/* Image */}
-      {article.image ? (
-        <img src={article.image} alt={article.title}
-          className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-800 to-indigo-900" />
-      )}
-      {/* Gradient overlay */}
+      className="group relative flex flex-col justify-end overflow-hidden rounded-3xl min-h-[460px] shadow-2xl">
+      {article.image
+        ? <img src={article.image} alt={article.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+        : <div className="absolute inset-0 bg-gradient-to-br from-purple-800 to-indigo-900" />
+      }
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
-      {/* Content */}
       <div className="relative p-6 sm:p-8">
         <div className="flex items-center gap-3 mb-4">
           <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-orange-500 text-white uppercase tracking-wide">
             <Flame className="w-3 h-3" /> Top Story
           </span>
-          <span className="text-white/60 text-xs">{article.source.name}</span>
+          <span className="text-white/60 text-xs font-medium">{article.source.name}</span>
         </div>
         <h2 className="text-white text-2xl sm:text-3xl font-extrabold leading-tight mb-3 group-hover:text-orange-300 transition-colors">
           {article.title}
         </h2>
         {article.description && (
-          <p className="text-white/70 text-sm leading-relaxed line-clamp-2 mb-4 max-w-2xl">
-            {article.description}
-          </p>
+          <p className="text-white/70 text-sm leading-relaxed line-clamp-2 mb-4 max-w-2xl">{article.description}</p>
         )}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white/50 text-xs">
-            <Clock className="w-3.5 h-3.5" />
-            {timeAgo(article.publishedAt)}
-          </div>
-          <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-400 group-hover:text-orange-300 transition-colors">
+          <span className="text-white/50 text-xs flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" /> {timeAgo(article.publishedAt)}
+          </span>
+          <span className="inline-flex items-center gap-1.5 text-sm font-bold text-orange-400 group-hover:text-orange-300 transition-colors">
             Read Full Story <ArrowUpRight className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
           </span>
         </div>
@@ -89,43 +97,28 @@ function HeroCard({ article }: { article: Article }) {
   )
 }
 
-// ─── Standard Card ────────────────────────────────────────────────────────────
-function ArticleCard({ article, index }: { article: Article; index: number }) {
+function ArticleCard({ article }: { article: Article }) {
   return (
     <a href={article.url} target="_blank" rel="noopener noreferrer"
-      className="group flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-purple-200 hover:shadow-xl transition-all duration-300"
-      style={{ animationDelay: `${index * 60}ms` }}>
-      {/* Thumbnail */}
+      className="group flex flex-col bg-white border border-gray-100 rounded-2xl overflow-hidden hover:border-purple-200 hover:shadow-xl transition-all duration-300">
       <div className="relative overflow-hidden h-48 bg-gray-100 flex-shrink-0">
-        {article.image ? (
-          <img src={article.image} alt={article.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center">
-            <BookOpen className="w-10 h-10 text-purple-300" />
-          </div>
-        )}
-        {/* Source badge */}
+        {article.image
+          ? <img src={article.image} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          : <div className="w-full h-full bg-gradient-to-br from-purple-100 to-indigo-100 flex items-center justify-center"><BookOpen className="w-10 h-10 text-purple-300" /></div>
+        }
         <div className="absolute top-3 left-3">
-          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-sm text-purple-700 shadow-sm">
-            {article.source.name}
-          </span>
+          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-white/90 backdrop-blur-sm text-purple-700 shadow-sm">{article.source.name}</span>
         </div>
       </div>
-      {/* Body */}
       <div className="flex flex-col flex-1 p-5">
         <div className="flex items-center gap-2 text-xs text-gray-400 mb-3">
           <Clock className="w-3 h-3" />
           <span>{formatDate(article.publishedAt)}</span>
           <span className="ml-auto text-purple-400 font-medium">{timeAgo(article.publishedAt)}</span>
         </div>
-        <h3 className="font-bold text-gray-900 text-base leading-snug line-clamp-2 group-hover:text-purple-700 transition-colors mb-2">
-          {article.title}
-        </h3>
+        <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-purple-700 transition-colors mb-2">{article.title}</h3>
         {article.description && (
-          <p className="text-gray-500 text-sm leading-relaxed line-clamp-3 flex-1 mb-4">
-            {article.description}
-          </p>
+          <p className="text-gray-500 text-xs leading-relaxed line-clamp-3 flex-1 mb-4">{article.description}</p>
         )}
         <div className="flex items-center gap-1 text-xs font-bold text-orange-500 group-hover:text-orange-600 transition-colors mt-auto pt-3 border-t border-gray-100">
           Read More <ArrowUpRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -135,37 +128,29 @@ function ArticleCard({ article, index }: { article: Article; index: number }) {
   )
 }
 
-// ─── Sidebar Card (compact) ───────────────────────────────────────────────────
 function SidebarCard({ article }: { article: Article }) {
   return (
     <a href={article.url} target="_blank" rel="noopener noreferrer"
       className="group flex gap-3 p-3 rounded-xl hover:bg-purple-50 transition-colors border border-transparent hover:border-purple-100">
       {article.image && (
-        <img src={article.image} alt=""
-          className="w-20 h-16 object-cover rounded-lg flex-shrink-0 group-hover:opacity-90 transition-opacity" />
+        <img src={article.image} alt="" className="w-20 h-16 object-cover rounded-lg flex-shrink-0 group-hover:opacity-90 transition-opacity" />
       )}
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-purple-600 mb-1 truncate">{article.source.name}</p>
-        <h4 className="text-sm font-semibold text-gray-800 leading-snug line-clamp-2 group-hover:text-purple-700 transition-colors">
-          {article.title}
-        </h4>
-        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-          <Clock className="w-3 h-3" />{timeAgo(article.publishedAt)}
-        </p>
+        <h4 className="text-sm font-semibold text-gray-800 leading-snug line-clamp-2 group-hover:text-purple-700 transition-colors">{article.title}</h4>
+        <p className="text-xs text-gray-400 mt-1 flex items-center gap-1"><Clock className="w-3 h-3" />{timeAgo(article.publishedAt)}</p>
       </div>
     </a>
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function NewsPage() {
-  const [articles, setArticles]       = useState<Article[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [activeCategory, setActive]   = useState('All')
-  const [activeTopic, setTopic]       = useState('technology')
-  const [search, setSearch]           = useState('')
-  const [refreshing, setRefreshing]   = useState(false)
-  const searchRef = useRef<HTMLInputElement>(null)
+  const [articles, setArticles]     = useState<Article[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [activeCategory, setActive] = useState('All')
+  const [activeTopic, setTopic]     = useState('technology')
+  const [search, setSearch]         = useState('')
+  const [refreshing, setRefreshing] = useState(false)
 
   const fetchNews = (topic: string, refresh = false) => {
     if (refresh) setRefreshing(true)
@@ -180,7 +165,8 @@ export default function NewsPage() {
   useEffect(() => { fetchNews(activeTopic) }, [activeTopic])
 
   const filtered = articles.filter(a =>
-    !search || a.title.toLowerCase().includes(search.toLowerCase()) ||
+    !search ||
+    a.title.toLowerCase().includes(search.toLowerCase()) ||
     a.description?.toLowerCase().includes(search.toLowerCase())
   )
 
@@ -191,11 +177,10 @@ export default function NewsPage() {
   return (
     <main className="min-h-screen bg-gray-50">
 
-      {/* ── Page Header ──────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
 
-          {/* Back + breadcrumb */}
           <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
             <Link href="/" className="flex items-center gap-1 hover:text-purple-600 transition-colors">
               <ArrowLeft className="w-4 h-4" /> Home
@@ -208,42 +193,33 @@ export default function NewsPage() {
             <div>
               <div className="flex items-center gap-2 mb-3">
                 <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-orange-100 text-orange-600 border border-orange-200">
-                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" />
-                  Live Feed
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" /> Live Feed
                 </span>
               </div>
               <h1 className="text-4xl sm:text-5xl font-extrabold text-gray-900 tracking-tight">
-                Tech & Career<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-500">
-                  Updates
-                </span>
+                Tech & Career
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-500">Updates</span>
               </h1>
               <p className="text-gray-500 mt-3 max-w-lg text-base leading-relaxed">
-                Stay ahead with curated news on technology, careers, and education — updated every 30 minutes.
+                Curated news on technology, jobs, startups, and education — plus real salary data and career facts for India.
               </p>
             </div>
-
-            {/* Search */}
             <div className="relative w-full lg:w-80">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
-                ref={searchRef}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search articles..."
                 className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-400 transition-all placeholder:text-gray-400"
               />
               {search && (
-                <button onClick={() => setSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">
-                  ×
-                </button>
+                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-lg leading-none">x</button>
               )}
             </div>
           </div>
 
           {/* Category Tabs */}
-          <div className="flex gap-2 mt-8 overflow-x-auto pb-1 scrollbar-hide">
+          <div className="flex gap-2 mt-8 overflow-x-auto pb-1">
             {CATEGORIES.map(({ label, icon: Icon, topic }) => (
               <button key={label}
                 onClick={() => { setActive(label); setTopic(topic); setSearch('') }}
@@ -252,25 +228,22 @@ export default function NewsPage() {
                     ? 'bg-purple-700 text-white shadow-lg shadow-purple-200'
                     : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-700'
                 }`}>
-                <Icon className="w-4 h-4" />
-                {label}
+                <Icon className="w-4 h-4" /> {label}
               </button>
             ))}
             <button onClick={() => fetchNews(activeTopic, true)}
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap bg-white border border-gray-200 text-gray-500 hover:text-purple-600 hover:border-purple-300 transition-all ml-auto">
-              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              Refresh
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Content ──────────────────────────────────────────────────── */}
+      {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10">
-
         {loading ? (
           <div className="space-y-8">
-            <Skeleton className="h-[480px] w-full" />
+            <Skeleton className="h-[460px] w-full" />
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[0,1,2,3,4,5].map(i => (
                 <div key={i} className="rounded-2xl overflow-hidden border border-gray-100">
@@ -279,7 +252,6 @@ export default function NewsPage() {
                     <Skeleton className="h-3 w-1/3" />
                     <Skeleton className="h-4 w-full" />
                     <Skeleton className="h-4 w-4/5" />
-                    <Skeleton className="h-3 w-2/3" />
                   </div>
                 </div>
               ))}
@@ -292,10 +264,7 @@ export default function NewsPage() {
             </div>
             <h3 className="text-xl font-bold text-gray-700 mb-2">No articles found</h3>
             <p className="text-gray-400 text-sm">Try a different search term or category.</p>
-            <button onClick={() => setSearch('')}
-              className="mt-4 text-sm text-purple-600 hover:underline font-medium">
-              Clear search
-            </button>
+            <button onClick={() => setSearch('')} className="mt-4 text-sm text-purple-600 hover:underline font-medium">Clear search</button>
           </div>
         ) : (
           <div className="space-y-10">
@@ -303,52 +272,94 @@ export default function NewsPage() {
             {/* Hero */}
             {hero && !search && <HeroCard article={hero} />}
 
-            {/* Result count when searching */}
             {search && (
-              <p className="text-sm text-gray-500">
-                Found <span className="font-bold text-gray-800">{filtered.length}</span> articles for "{search}"
-              </p>
+              <p className="text-sm text-gray-500">Found <span className="font-bold text-gray-800">{filtered.length}</span> articles for "{search}"</p>
             )}
 
-            {/* Main grid + sidebar */}
             <div className="grid lg:grid-cols-3 gap-8">
 
-              {/* Main articles grid */}
-              <div className="lg:col-span-2">
-                <div className="flex items-center justify-between mb-5">
-                  <h2 className="font-extrabold text-gray-900 text-xl">
-                    {search ? 'Search Results' : 'Latest Stories'}
-                  </h2>
-                  <span className="text-xs text-gray-400">
-                    {(search ? filtered : main).length} articles
-                  </span>
+              {/* Articles grid */}
+              <div className="lg:col-span-2 space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-extrabold text-gray-900 text-xl">{search ? 'Search Results' : 'Latest Stories'}</h2>
+                  <span className="text-xs text-gray-400">{(search ? filtered : main).length} articles</span>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-5">
                   {(search ? filtered : main).map((article, i) => (
-                    <ArticleCard key={i} article={article} index={i} />
+                    <ArticleCard key={i} article={article} />
                   ))}
                 </div>
               </div>
 
               {/* Sidebar */}
-              {!search && sidebar.length > 0 && (
+              {!search && (
                 <aside>
-                  <div className="sticky top-6">
-                    <h2 className="font-extrabold text-gray-900 text-xl mb-5">More Stories</h2>
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
-                      {sidebar.map((article, i) => (
-                        <SidebarCard key={i} article={article} />
-                      ))}
+                  <div className="sticky top-6 space-y-6">
+
+                    {/* More news */}
+                    {sidebar.length > 0 && (
+                      <div>
+                        <h2 className="font-extrabold text-gray-900 text-lg mb-4">More Stories</h2>
+                        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-50">
+                          {sidebar.map((article, i) => <SidebarCard key={i} article={article} />)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Job market facts */}
+                    <div className="bg-gradient-to-br from-purple-700 to-indigo-700 rounded-2xl p-5 text-white">
+                      <div className="flex items-center gap-2 mb-4">
+                        <Zap className="w-5 h-5 text-orange-300" />
+                        <h3 className="font-extrabold text-base">Job Market Facts</h3>
+                      </div>
+                      <div className="space-y-3">
+                        {JOB_FACTS.map(({ stat, desc }) => (
+                          <div key={stat} className="flex gap-3 items-start">
+                            <span className="text-orange-300 font-extrabold text-sm whitespace-nowrap pt-0.5">{stat}</span>
+                            <p className="text-purple-100 text-xs leading-relaxed">{desc}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-purple-300 text-xs mt-4">Source: NASSCOM, LinkedIn India 2025</p>
                     </div>
+
+                    {/* Salary guide */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <div className="flex items-center gap-2 mb-4">
+                        <IndianRupee className="w-5 h-5 text-green-500" />
+                        <h3 className="font-extrabold text-gray-900 text-base">2025 Salary Guide</h3>
+                      </div>
+                      <div className="space-y-2.5">
+                        {SALARY_FACTS.map(({ role, salary }) => (
+                          <div key={role} className="flex items-center justify-between py-2 border-b border-gray-50 last:border-0">
+                            <span className="text-xs font-medium text-gray-700">{role}</span>
+                            <span className="text-xs font-bold text-green-600 bg-green-50 px-2.5 py-1 rounded-full">{salary}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-gray-400 text-xs mt-3">Avg. salaries in India, 2025</p>
+                    </div>
+
+                    {/* CTA */}
+                    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-5">
+                      <h3 className="font-extrabold text-gray-900 text-base mb-2">Ready to upskill?</h3>
+                      <p className="text-gray-500 text-xs leading-relaxed mb-4">
+                        Join thousands of students building job-ready skills at Ultimate Institute.
+                      </p>
+                      <Link href="/courses"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold transition-colors">
+                        Browse Courses <ArrowUpRight className="w-4 h-4" />
+                      </Link>
+                    </div>
+
                   </div>
                 </aside>
               )}
             </div>
 
-            {/* Attribution */}
             <div className="text-center pt-6 border-t border-gray-200">
               <p className="text-xs text-gray-400">
-                News sourced from GNews · All articles link to original publishers · Updated every 30 minutes
+                News powered by GNews · All articles open original source · Updated every 30 minutes
               </p>
             </div>
 

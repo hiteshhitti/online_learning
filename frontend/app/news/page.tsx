@@ -29,20 +29,20 @@ const CATEGORIES = [
 ]
 
 const JOB_FACTS = [
-  { stat: '3.2M+',  desc: 'Tech job openings expected in India by 2025' },
-  { stat: '68%',    desc: 'Indian tech companies plan to hire freshers this year' },
-  { stat: '40%',    desc: 'Jump in AI/ML job postings in last 12 months' },
-  { stat: '2.5x',   desc: 'Higher salary for cloud-certified engineers' },
+  { stat: "4.1M+",  desc: "Tech job openings expected in India in 2026" },
+  { stat: "74%",    desc: "Indian tech companies plan to hire freshers in 2026" },
+  { stat: "52%",    desc: "Jump in AI/ML job postings in last 12 months" },
+  { stat: "3x",     desc: "Higher salary for cloud-certified engineers" },
   { stat: '85%',    desc: 'IT companies prefer candidates with project experience' },
   { stat: '72%',    desc: 'Hiring managers value portfolio over degree' },
 ]
 
 const SALARY_FACTS = [
-  { role: 'Full Stack Developer',  salary: '8-18 LPA'  },
-  { role: 'Data Scientist',        salary: '8-25 LPA'  },
+  { role: 'Full Stack Developer',  salary: '9-20 LPA'  },
+  { role: 'Data Scientist',        salary: '10-28 LPA' },
   { role: 'Cybersecurity Analyst', salary: '6-15 LPA'  },
   { role: 'Cloud Engineer',        salary: '10-22 LPA' },
-  { role: 'AI/ML Engineer',        salary: '12-30 LPA' },
+  { role: 'AI/ML Engineer',        salary: '14-35 LPA' },
   { role: 'DevOps Engineer',       salary: '9-20 LPA'  },
 ]
 
@@ -320,7 +320,7 @@ export default function NewsPage() {
                           </div>
                         ))}
                       </div>
-                      <p className="text-purple-300 text-xs mt-4">Source: NASSCOM, LinkedIn India 2025</p>
+                      <p className="text-purple-300 text-xs mt-4">Source: NASSCOM, LinkedIn India 2026</p>
                     </div>
 
                     {/* Salary guide */}
@@ -337,7 +337,7 @@ export default function NewsPage() {
                           </div>
                         ))}
                       </div>
-                      <p className="text-gray-400 text-xs mt-3">Avg. salaries in India, 2025</p>
+                      <p className="text-gray-400 text-xs mt-3">Avg. salaries in India, 2026</p>
                     </div>
 
                     {/* CTA */}

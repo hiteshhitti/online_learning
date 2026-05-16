@@ -359,6 +359,85 @@ export default function Home() {
           </p>
         </div>
       </section>
+      {/* ── Job Facts + Salary Guide ─────────────────────────────────── */}
+      <section className="py-16 px-4 bg-gray-50 border-t border-gray-100">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-10">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full bg-green-100 text-green-700 border border-green-200 mb-4">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              2026 Data
+            </span>
+            <h2 className="text-3xl font-extrabold text-gray-900">Job Market & Salary Insights</h2>
+            <p className="text-gray-500 mt-2 text-sm">Real numbers to help you make smarter career decisions</p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-6">
+
+            {/* Job Facts */}
+            <div className="bg-gradient-to-br from-purple-700 to-indigo-700 rounded-3xl p-7 text-white">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-orange-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-lg">Job Market Facts</h3>
+                  <p className="text-purple-300 text-xs">India Tech Sector · 2026</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                {[
+                  { stat: '4.1M+',  desc: 'Tech job openings in India' },
+                  { stat: '74%',    desc: 'Companies hiring freshers' },
+                  { stat: '52%',    desc: 'Rise in AI/ML job postings' },
+                  { stat: '3x',     desc: 'Salary boost with certifications' },
+                  { stat: '89%',    desc: 'Prefer hands-on project experience' },
+                  { stat: '78%',    desc: 'Value portfolio over degree' },
+                ].map(({ stat, desc }) => (
+                  <div key={stat} className="bg-white/10 rounded-2xl p-4">
+                    <p className="text-orange-300 font-extrabold text-xl mb-1">{stat}</p>
+                    <p className="text-purple-100 text-xs leading-relaxed">{desc}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-purple-300 text-xs mt-5">Source: NASSCOM, LinkedIn India · 2026</p>
+            </div>
+
+            {/* Salary Guide */}
+            <div className="bg-white rounded-3xl border border-gray-200 p-7 shadow-sm">
+              <div className="flex items-center gap-2 mb-6">
+                <div className="w-9 h-9 rounded-xl bg-green-100 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-gray-900 text-lg">2026 Salary Guide</h3>
+                  <p className="text-gray-400 text-xs">Average annual packages in India</p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {[
+                  { role: 'AI / ML Engineer',          salary: '14-35 LPA', hot: true  },
+                  { role: 'Full Stack Developer',       salary: '9-20 LPA',  hot: true  },
+                  { role: 'Cloud Engineer',             salary: '12-25 LPA', hot: false },
+                  { role: 'Data Scientist',             salary: '10-28 LPA', hot: false },
+                  { role: 'DevOps Engineer',            salary: '10-22 LPA', hot: false },
+                  { role: 'Cybersecurity Analyst',      salary: '7-18 LPA',  hot: false },
+                  { role: 'UI/UX Designer',             salary: '6-16 LPA',  hot: false },
+                ].map(({ role, salary, hot }) => (
+                  <div key={role} className="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-800">{role}</span>
+                      {hot && <span className="text-xs font-bold px-1.5 py-0.5 rounded-md bg-orange-100 text-orange-600">Hot</span>}
+                    </div>
+                    <span className="text-sm font-extrabold text-green-600 bg-green-50 px-3 py-1 rounded-full">{salary}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-gray-400 text-xs mt-4">Based on avg. offers · India · 2026</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── CTA ──────────────────────────────────────────────────────── */}
       <section className="py-20 px-4 bg-gray-50">
         <div className="max-w-3xl mx-auto text-center">
